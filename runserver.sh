@@ -1,0 +1,1 @@
+./xpilots -map testtrack.xp -noQuit -maxClientsPerIP 500 -password test -worldlives 999 -reset no -fps 28
