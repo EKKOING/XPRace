@@ -12,9 +12,13 @@ import pymongo
 import wandb
 from bson.binary import Binary
 
-wandb.init(project="XPRace", entity="ekkoing", resume=False)
+wandb.init(project="XPRace", entity="xprace", resume=False)
 wandb.config = {
     "pop": 100,
+    "bonus_mod": 0.98,
+    "time_mod": 1.5,
+    "episode_length": 60,
+    "completion_mod": 1.5
 }
 
 # Output Utils
@@ -155,7 +159,7 @@ class EvolveManager:
             print(f'=== {datetime.now().strftime("%H:%M:%S")} ===\n{uncompleted_training} genomes still need to be evaluated\n{started_training} currently being evaluated\n{finished_training} have been evaluated')
             progress_bar(finished_training, started_training, len(genomes))
             secs_tg = (ceil(uncompleted_training *
-                       120 / (self.num_workers + 1)))
+                       wandb.config['episode_length'] / (self.num_workers + 1)))
             if secs_tg != last_secs_tg:
                 secs_since_tg_update = 0
             last_secs_tg = secs_tg
@@ -188,18 +192,19 @@ class EvolveManager:
                 {'key': key, 'generation': self.generation})
             ## TODO: add bonus and completion to results
             fitness = 0.0
-            bonus = results['bonus']
-            completion = results['completion']
+            bonus = results['bonus'] * wandb.config['bonus_multiplier']
+            completion = results['completion'] ** wandb.config['completion_multiplier']
             time = results['time']
             time_bonus = 0.0
             if time > 0:
-                time_bonus = (120.0 - time) ** 1.5
+                time_bonus = (120.0 - time) ** wandb.config['time_multiplier']
             fitness = bonus + time_bonus + completion
             genome.fitness = fitness
             fit_list.append(fitness)
             bonus_list.append(bonus)
             completion_list.append(completion)
-            time_list.append(time)
+            if time > 0:
+                time_list.append(time)
 
         self.completion_list = completion_list
         self.fit_list = fit_list
@@ -225,13 +230,6 @@ class EvolveManager:
                     title="Evaluation Timeout",
                     text=f"Genome {key} has been running for 5 minutes, marking for review",
                 )
-        for genome in collection.find({'generation': self.generation, 'started_eval': True, 'finished_eval': True, 'fitness': 0}):
-            genome_id = genome['_id']
-            key = genome['key']
-            delete_last_lines(5)
-            print(f'Genome {key} did nothing!\n\n\n\n\n\n\n')
-            collection.update_one({'_id': genome_id}, {
-                                  '$set': {'fitness': -20}})
 
 
 manager = EvolveManager(config_path, latest=None, generation=0)
@@ -260,7 +258,7 @@ while True:
             log["Median Time"] = np.median(manager.time_list)
             log["Max Time"] = np.max(manager.time_list)
             log["Min Time"] = np.min(manager.time_list)
-        wandb.log()
+        wandb.log(log)
         manager.generation += 1
     except KeyboardInterrupt:
         # Allows time for non-zero exit code with ctrl+c
