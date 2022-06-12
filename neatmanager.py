@@ -5,6 +5,7 @@ import sys
 from datetime import datetime, timedelta
 from math import ceil, floor
 from time import sleep
+from typing import Iterable
 
 import neat
 import numpy as np
@@ -12,13 +13,14 @@ import pymongo
 import wandb
 from bson.binary import Binary
 
-wandb.init(project="XPRace", entity="xprace", resume=False)
+wandb.init(project="XPRace", entity="xprace", resume=True)
 wandb.config = {
     "pop": 100,
     "bonus_mod": 0.98,
     "time_mod": 1.5,
     "episode_length": 60,
-    "completion_mod": 1.5
+    "completion_mod": 1.5,
+    "trial": 1,
 }
 
 # Output Utils
@@ -79,16 +81,18 @@ class EvolveManager:
     completion_list = []
     bonus_list = []
     time_list = []
+    current_species_list = []
+    runtime_list = []
 
-    def __init__(self, config_file: str, latest=None, generation: int = 0):
+    def __init__(self, config_file: str, generation: int = 0):
         self.config_file = config_file
-        self.latest = latest
+        self.latest = f'NEAT-{generation}'
         self.generation = generation
         self.config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
                                   neat.DefaultSpeciesSet, neat.DefaultStagnation,
                                   config_file)
         self.p = neat.Checkpointer.restore_checkpoint(
-            latest) if latest else neat.Population(self.config)
+            self.latest) if self.latest else neat.Population(self.config)
         self.p.config = self.config
         self.p.add_reporter(neat.StdOutReporter(False))
         self.checkpointer = neat.Checkpointer(1, filename_prefix='NEAT-')
@@ -99,11 +103,15 @@ class EvolveManager:
         self.gen_start = datetime.now()
         collection = db.genomes
         individual_num = 0
+        self.current_species_list = []
         for genome_id, genome in genomes:
             individual_num += 1
             key = genome.key
             net = neat.nn.RecurrentNetwork.create(genome, config)
             net = Binary(pickle.dumps(net))
+            species_id = self.p.species.get_species_id(genome_id)
+            if species_id not in self.current_species_list:
+                self.current_species_list.append(species_id)
             db_entry = {
                 'key': key,
                 'genome': net,
@@ -116,6 +124,7 @@ class EvolveManager:
                 'started_at': None,
                 'finished_eval': False,
                 'algo': 'NEAT',
+                'species': species_id
             }
             if collection.find_one({'generation': self.generation, 'individual_num': individual_num, 'algo': 'NEAT'}):
                 collection.update_one(
@@ -124,7 +133,7 @@ class EvolveManager:
                         'individual_num': individual_num
                     }, {
                         '$set': {
-                            'started_eval': False, 'finished_eval': False, 'bonus': 0, 'completion': 0, 'time': -1.0, 'genome': net, 'started_at': None, 'key': key
+                            'started_eval': False, 'finished_eval': False, 'bonus': 0, 'completion': 0, 'time': -1.0, 'genome': net, 'started_at': None, 'key': key, 'species': species_id
                         }
                     }
                 )
@@ -186,23 +195,26 @@ class EvolveManager:
         bonus_list = []
         completion_list = []
         time_list = []
+        runtime_list = []
         for genome_id, genome in genomes:
             key = genome.key
             results = collection.find_one(
                 {'key': key, 'generation': self.generation})
             ## TODO: add bonus and completion to results
             fitness = 0.0
-            bonus = results['bonus'] * wandb.config['bonus_multiplier']
-            completion = results['completion'] ** wandb.config['completion_multiplier']
+            bonus = results['bonus'] * wandb.config['bonus_mod']
+            completion = results['completion'] ** wandb.config['completion_mod']
             time = results['time']
+            runtime = results['run_time']
             time_bonus = 0.0
             if time > 0:
-                time_bonus = (120.0 - time) ** wandb.config['time_multiplier']
+                time_bonus = (120.0 - time) ** wandb.config['time_mod']
             fitness = bonus + time_bonus + completion
             genome.fitness = fitness
             fit_list.append(fitness)
             bonus_list.append(bonus)
             completion_list.append(completion)
+            runtime_list.append(runtime)
             if time > 0:
                 time_list.append(time)
 
@@ -210,8 +222,10 @@ class EvolveManager:
         self.fit_list = fit_list
         self.bonus_list = bonus_list
         self.time_list = time_list
+        self.runtime_list = runtime_list
 
     def run(self, num_gens: int = 0):
+        
         winner = self.p.run(self.eval_genomes, num_gens)
         return winner
 
@@ -231,8 +245,7 @@ class EvolveManager:
                     text=f"Genome {key} has been running for 5 minutes, marking for review",
                 )
 
-
-manager = EvolveManager(config_path, latest=None, generation=0)
+manager = EvolveManager(config_path, generation=381)
 while True:
     try:
         manager.run(num_gens=1)
@@ -242,22 +255,32 @@ while True:
             "Median Fitness": np.median(manager.fit_list),
             "Max Fitness": np.max(manager.fit_list),
             "Min Fitness": np.min(manager.fit_list),
+            "SD Fitness": np.std(manager.fit_list),
             "Avg Bonus": np.mean(manager.bonus_list),
             "Median Bonus": np.median(manager.bonus_list),
             "Max Bonus": np.max(manager.bonus_list),
             "Min Bonus": np.min(manager.bonus_list),
+            "SD Bonus": np.std(manager.bonus_list),
             "Avg Completion": np.mean(manager.completion_list),
             "Median Completion": np.median(manager.completion_list),
             "Max Completion": np.max(manager.completion_list),
             "Min Completion": np.min(manager.completion_list),
+            "SD Completion": np.std(manager.completion_list),
+            "Avg Runtime": np.mean(manager.runtime_list),
+            "Median Runtime": np.median(manager.runtime_list),
+            "Max Runtime": np.max(manager.runtime_list),
+            "Min Runtime": np.min(manager.runtime_list),
+            "SD Runtime": np.std(manager.runtime_list),
             "Time Elapsed": (datetime.now() - manager.gen_start).total_seconds(),
-            "Time": datetime.now()
+            "Time": datetime.now(),
+            "Num Species": len(manager.current_species_list),
         }
         if len(manager.time_list) != 0:
             log["Avg Time"] = np.mean(manager.time_list)
             log["Median Time"] = np.median(manager.time_list)
             log["Max Time"] = np.max(manager.time_list)
             log["Min Time"] = np.min(manager.time_list)
+            log["SD Time"] = np.std(manager.time_list)
         wandb.log(log)
         manager.generation += 1
     except KeyboardInterrupt:

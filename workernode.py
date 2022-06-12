@@ -1,13 +1,15 @@
-from shellracebot import ShellBot
-from time import sleep
-import pymongo
 import json
-from bson.binary import Binary
 import pickle
 from datetime import datetime, timedelta
-from neat import nn
-from GANet import GANet
 from random import randint
+from time import sleep
+
+import pymongo
+from bson.binary import Binary
+from GANet import GANet
+from neat import nn
+
+from shellracebot import ShellBot
 
 eval_length = 60
 
@@ -36,6 +38,8 @@ while True:
     try:
         if collection.count_documents({'started_eval': False}) != 0:
             genome = collection.find_one({'started_eval': False})
+            if genome is None:
+                continue
             collection.update_one({'_id': genome['_id']}, {
                                 '$set': {'started_eval': True, 'started_at': datetime.now()}})
             net = pickle.loads(genome['genome'])
@@ -51,9 +55,12 @@ while True:
             while not sb.done and (datetime.now() - start_time).total_seconds() < eval_length:
                 sleep(0.01)
             bonus, completion, time = sb.get_scores()
+            last_x = sb.x
+            last_y = sb.y
+            runtime = round((datetime.now() - start_time).total_seconds(), 3)
             collection.update_one({'_id': genome['_id']}, {
-                                '$set': {'bonus': bonus, 'completion': bonus, 'time': time, 'finished_eval': True}})
-            print(f'Generation {generation} number {individual_num} finished evaluation! Bonus: {bonus} Completion: {completion} Time: {time} Runtime: {round((datetime.now() - start_time).total_seconds(), 3)}s')
+                                '$set': {'bonus': bonus, 'completion': bonus, 'time': time, 'finished_eval': True, 'runtime': runtime, 'x': last_x, 'y': last_y}})
+            print(f'Generation {generation} number {individual_num} finished evaluation! Bonus: {bonus} Completion: {completion} Time: {time} Runtime: {runtime}s')
             print("==================")
             waiting = False
         else:
