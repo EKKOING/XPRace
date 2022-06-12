@@ -234,10 +234,10 @@ class EvolveManager:
             genome_id = genome['_id']
             key = genome['key']
             started_at = genome['started_at']
-            if (datetime.now() - started_at) > timedelta(minutes=5):
+            if (datetime.now() - started_at) > timedelta(minutes=2):
                 delete_last_lines(5)
                 print(
-                    f'Genome {key} has been running for 5 minutes, marking for review!\n\n\n\n\n\n\n')
+                    f'Genome {key} has been running for 2 minutes, marking for review!\n\n\n\n\n\n\n')
                 collection.update_one({'_id': genome_id}, {
                                       '$set': {'started_eval': False}})
                 wandb.alert(
