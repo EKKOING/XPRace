@@ -59,7 +59,7 @@ while True:
             last_y = sb.y
             runtime = round((datetime.now() - start_time).total_seconds(), 3)
             collection.update_one({'_id': genome['_id']}, {
-                                '$set': {'bonus': bonus, 'completion': bonus, 'time': time, 'finished_eval': True, 'runtime': runtime, 'x': last_x, 'y': last_y}})
+                                '$set': {'bonus': bonus, 'completion': completion, 'time': time, 'finished_eval': True, 'runtime': runtime, 'x': last_x, 'y': last_y}})
             print(f'Generation {generation} number {individual_num} finished evaluation! Bonus: {bonus} Completion: {completion} Time: {time} Runtime: {runtime}s')
             print("==================")
             waiting = False
