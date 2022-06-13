@@ -13,15 +13,16 @@ import pymongo
 import wandb
 from bson.binary import Binary
 
-wandb.init(project="XPRace", entity="xprace", resume=True)
+wandb.init(project="XPRace", entity="xprace", resume=False)
 wandb.config = {
     "pop": 100,
     "bonus_mod": 0.98,
-    "time_mod": 1.5,
+    "time_mod": 1.1,
     "episode_length": 60,
-    "completion_mod": 1.5,
-    "trial": 1,
+    "completion_mod": 1.1,
+    "trial": 3,
 }
+config_name = 'config'
 
 # Output Utils
 CURSOR_UP_ONE = '\x1b[1A'
@@ -67,7 +68,7 @@ db = client.NEAT
 
 
 local_dir = os.path.dirname(__file__)
-config_path = os.path.join(local_dir, 'config')
+config_path = os.path.join(local_dir, config_name)
 
 # TODO: load generation number from mongodb
 
@@ -76,6 +77,7 @@ class EvolveManager:
     generation = 0
     num_workers = 0
     gen_start: datetime
+    latest = None
 
     fit_list = []
     completion_list = []
@@ -86,7 +88,8 @@ class EvolveManager:
 
     def __init__(self, config_file: str, generation: int = 0):
         self.config_file = config_file
-        self.latest = f'NEAT-{generation}'
+        if generation != 0:
+            self.latest = f'NEAT-{generation}'
         self.generation = generation
         self.config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
                                   neat.DefaultSpeciesSet, neat.DefaultStagnation,
@@ -124,13 +127,16 @@ class EvolveManager:
                 'started_at': None,
                 'finished_eval': False,
                 'algo': 'NEAT',
-                'species': species_id
+                'species': species_id,
+                'trial': wandb.config['trial']
             }
-            if collection.find_one({'generation': self.generation, 'individual_num': individual_num, 'algo': 'NEAT'}):
+            if collection.find_one({'generation': self.generation, 'individual_num': individual_num, 'algo': 'NEAT', 'trial': wandb.config['trial']}):
                 collection.update_one(
                     {
                         'generation': self.generation,
-                        'individual_num': individual_num
+                        'individual_num': individual_num,
+                        'algo': 'NEAT',
+                        'trial': wandb.config['trial'],
                     }, {
                         '$set': {
                             'started_eval': False, 'finished_eval': False, 'bonus': 0, 'completion': 0, 'time': -1.0, 'genome': net, 'started_at': None, 'key': key, 'species': species_id
@@ -147,11 +153,11 @@ class EvolveManager:
         last_secs_tg = 0
         while True:
             uncompleted_training = collection.count_documents({'generation': self.generation,
-                                                               'finished_eval': False, 'algo': 'NEAT'})
+                                                               'finished_eval': False, 'algo': 'NEAT', 'trial': wandb.config['trial']})
             started_training = collection.count_documents(
-                {'generation': self.generation, 'started_eval': True, 'finished_eval': False, 'algo': 'NEAT'})
+                {'generation': self.generation, 'started_eval': True, 'finished_eval': False, 'algo': 'NEAT', 'trial': wandb.config['trial']})
             finished_training = collection.count_documents(
-                {'generation': self.generation, 'finished_eval': True, 'algo': 'NEAT'})
+                {'generation': self.generation, 'finished_eval': True, 'algo': 'NEAT', 'trial': wandb.config['trial']})
 
             if self.num_workers < started_training:
                 self.num_workers = started_training
@@ -199,11 +205,11 @@ class EvolveManager:
         for genome_id, genome in genomes:
             key = genome.key
             results = collection.find_one(
-                {'key': key, 'generation': self.generation})
-            ## TODO: add bonus and completion to results
+                {'key': key, 'generation': self.generation, 'trial': wandb.config['trial']})
             fitness = 0.0
             bonus = results['bonus'] * wandb.config['bonus_mod']
             completion = results['completion'] ** wandb.config['completion_mod']
+            completion_list.append(completion)
             time = results['time']
             runtime = results['run_time']
             time_bonus = 0.0
@@ -213,7 +219,6 @@ class EvolveManager:
             genome.fitness = fitness
             fit_list.append(fitness)
             bonus_list.append(bonus)
-            completion_list.append(completion)
             runtime_list.append(runtime)
             if time > 0:
                 time_list.append(time)
@@ -230,7 +235,7 @@ class EvolveManager:
         return winner
 
     def check_eval_status(self, collection):
-        for genome in collection.find({'generation': self.generation, 'started_eval': True, 'finished_eval': False}):
+        for genome in collection.find({'generation': self.generation, 'started_eval': True, 'finished_eval': False, 'trial': wandb.config['trial']}):
             genome_id = genome['_id']
             key = genome['key']
             started_at = genome['started_at']
@@ -245,7 +250,7 @@ class EvolveManager:
                     text=f"Genome {key} has been running for 5 minutes, marking for review",
                 )
 
-manager = EvolveManager(config_path, generation=381)
+manager = EvolveManager(config_path, generation=0)
 while True:
     try:
         manager.run(num_gens=1)
