@@ -13,14 +13,14 @@ import pymongo
 import wandb
 from bson.binary import Binary
 
-wandb.init(project="XPRace", entity="xprace", resume=False)
+wandb.init(project="XPRace", entity="xprace", resume="must", id="34vuicpj")
 wandb.config = {
     "pop": 100,
     "bonus_mod": 0.98,
-    "time_mod": 1.1,
-    "episode_length": 60,
+    "time_mod": 1.5,
+    "episode_length": 120,
     "completion_mod": 1.1,
-    "trial": 3,
+    "trial": 4,
 }
 config_name = 'config'
 
@@ -85,6 +85,8 @@ class EvolveManager:
     time_list = []
     current_species_list = []
     runtime_list = []
+    best_time = 120.0
+    prev_best_time = 120.0
 
     def __init__(self, config_file: str, generation: int = 0):
         self.config_file = config_file
@@ -207,21 +209,31 @@ class EvolveManager:
             results = collection.find_one(
                 {'key': key, 'generation': self.generation, 'trial': wandb.config['trial']})
             fitness = 0.0
-            bonus = results['bonus'] * wandb.config['bonus_mod']
-            completion = results['completion'] ** wandb.config['completion_mod']
+            bonus = results['bonus']
+            bonus_list.append(bonus)
+            bonus = bonus * wandb.config['bonus_mod']
+            completion = results['completion']
             completion_list.append(completion)
+            completion_bonus =  completion ** wandb.config['completion_mod']
             time = results['time']
-            runtime = results['run_time']
+            runtime = results['runtime']
             time_bonus = 0.0
             if time > 0:
-                time_bonus = (120.0 - time) ** wandb.config['time_mod']
-            fitness = bonus + time_bonus + completion
-            genome.fitness = fitness
+                time_bonus = max((121.0 - time), 1.0) ** wandb.config['time_mod']
+            fitness = bonus + time_bonus + completion_bonus
+            try:
+                genome.fitness = fitness.real
+            except AttributeError:
+                genome.fitness = float(fitness)
             fit_list.append(fitness)
-            bonus_list.append(bonus)
             runtime_list.append(runtime)
             if time > 0:
                 time_list.append(time)
+        
+        self.prev_best_time = self.best_time
+        if len(time_list) > 0 and np.max(time_list) < self.best_time:
+            self.best_time = np.max(time_list)
+            print(f'New best time: {self.best_time}')
 
         self.completion_list = completion_list
         self.fit_list = fit_list
@@ -239,18 +251,26 @@ class EvolveManager:
             genome_id = genome['_id']
             key = genome['key']
             started_at = genome['started_at']
-            if (datetime.now() - started_at) > timedelta(minutes=2):
+            if (datetime.now() - started_at) > timedelta(minutes=3):
+                try:
+                    if genome['failed_eval']:
+                        print(f'Genome {key} failed to evaluate')
+                        collection.update_one({'_id': genome_id}, {'$set': {'finished_eval': True}})
+                        wandb.alert(title='Failed Eval!', text=f'Gen: {self.generation} Genome {key} failed to evaluate!')
+                        continue
+                except KeyError:
+                    pass
                 delete_last_lines(5)
                 print(
-                    f'Genome {key} has been running for 2 minutes, marking for review!\n\n\n\n\n\n\n')
+                    f'Genome {key} has been running for 3 minutes, marking for review!\n\n\n\n\n\n\n')
                 collection.update_one({'_id': genome_id}, {
-                                      '$set': {'started_eval': False}})
+                                      '$set': {'started_eval': False, 'failed_eval': True}})
                 wandb.alert(
                     title="Evaluation Timeout",
-                    text=f"Genome {key} has been running for 5 minutes, marking for review",
+                    text=f"Gen: {self.generation} Genome {key} has been running for 3 minutes, marking for review",
                 )
 
-manager = EvolveManager(config_path, generation=0)
+manager = EvolveManager(config_path, generation=640)
 while True:
     try:
         manager.run(num_gens=1)
@@ -286,6 +306,9 @@ while True:
             log["Max Time"] = np.max(manager.time_list)
             log["Min Time"] = np.min(manager.time_list)
             log["SD Time"] = np.std(manager.time_list)
+        
+        if manager.best_time != manager.prev_best_time:
+            log["Best Time"] = manager.best_time
         wandb.log(log)
         manager.generation += 1
     except KeyboardInterrupt:
