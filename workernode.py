@@ -45,22 +45,24 @@ while True:
             net = pickle.loads(genome['genome'])
             generation = genome['generation']
             individual_num = genome['individual_num']
+            species = genome['species']
             sb.nn = net
             sb.reset()
             while sb.awaiting_reset or sb.done:
                 pass
-            print(
-                f'Generation {generation} number {individual_num} started evaluation!')
+            print(f'Generation {generation} number {individual_num} started evaluation!')
             start_time = datetime.now()
             while not sb.done and (datetime.now() - start_time).total_seconds() < eval_length:
                 sleep(0.01)
+                if (datetime.now() - start_time).total_seconds() > 20.0 and sb.y > 3115:
+                    break
             bonus, completion, time = sb.get_scores()
             last_x = sb.x
             last_y = sb.y
             runtime = round((datetime.now() - start_time).total_seconds(), 3)
             collection.update_one({'_id': genome['_id']}, {
                                 '$set': {'bonus': bonus, 'completion': completion, 'time': time, 'finished_eval': True, 'runtime': runtime, 'x': last_x, 'y': last_y}})
-            print(f'Generation {generation} number {individual_num} finished evaluation! Bonus: {bonus} Completion: {completion} Time: {time} Runtime: {runtime}s')
+            print(f'Generation {generation} number {individual_num} Species: {species} finished evaluation! Bonus: {bonus} Completion: {completion} Time: {time} Runtime: {runtime}s')
             print("==================")
             waiting = False
         else:
