@@ -11,7 +11,6 @@ import pickle
 import threading
 from random import randint, random
 from time import sleep
-from turtle import speed
 from typing import List, Tuple, Union
 
 import libpyAI as ai
@@ -29,6 +28,7 @@ class ShellBot(threading.Thread):
     nn = None
     exploration_rate = 0.02
     cum_bonus = 0.0
+    max_thrust_val = -999
 
     ## Racing Info
     gamemap: str = "testtrack"
@@ -142,10 +142,11 @@ class ShellBot(threading.Thread):
             self.check_done()
             self.set_action()
             self.perform_action()
+            ai.setPowerLevel(self.power_level)
         except AttributeError:
-            pass
-        except Exception as e:
-            print("Error: " + str(e))
+           pass
+        # except Exception as e:
+        #     print("Error: " + str(e))
         self.calculate_bonus()
         ##print(f"Cpt: {self.current_checkpoint} Done: {self.done} Course Comp.: {self.completed_course}")
         ##print(f"Scores (Bonus, Completion %, Time): {self.get_scores()}")
@@ -170,6 +171,7 @@ class ShellBot(threading.Thread):
         tt_tracking = max(1.0 - (self.tt_tracking / 140.0), 0.0)
         tt_retro_point = max(1.0 - (self.tt_retro_point / 70.0), 0.0)
         angle_diff_tracking = self.angle_diff(self.heading, self.tracking) / 180.0
+        angle_diff_closest = self.angle_diff(self.heading, self.closest_wall_heading) / 180.0
 
         self.current_checkpoint = self.get_current_checkpoint()
 
@@ -182,7 +184,7 @@ class ShellBot(threading.Thread):
             checkpoint_info.append(angle)
 
         ## Organize the values
-        oberservations = [ship_speed, wall_track, angle_diff_tracking, closest_wall, wall_front, wall_back, wall_left, wall_right, wall_15_right, wall_15_left, wall_30_right, wall_30_left, tt_tracking, tt_retro_point, self.last_thrust, self.last_turn]
+        oberservations = [ship_speed, wall_track, angle_diff_tracking, closest_wall, angle_diff_closest, wall_front, wall_back, wall_left, wall_right, wall_15_right, wall_15_left, wall_30_right, wall_30_left, tt_tracking, tt_retro_point, self.last_thrust, self.last_turn]
         oberservations.extend(checkpoint_info)
 
         ## Check Normalization
