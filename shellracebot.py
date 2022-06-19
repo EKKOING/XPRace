@@ -218,10 +218,16 @@ class ShellBot(threading.Thread):
         self.turn_val = outputs[1]
 
         self.thrust_val = max(min(self.thrust_val, 1.0), 0.0)
-        if self.speed < 0.5:
-            self.thrust_val = 1.0
-        if self.thrust_val > 0.5:
+
+        if self.thrust_val > 0.75:
             self.thrust = True
+            self.power_level = 28.0
+        elif self.thrust_val > 0.5:
+            self.thrust = True
+            self.power_level = 21.0
+        elif self.thrust_val > 0.25:
+            self.thrust = True
+            self.power_level = 14.0
         else:
             self.thrust = False
         
