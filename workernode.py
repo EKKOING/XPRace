@@ -54,7 +54,7 @@ while True:
             start_time = datetime.now()
             while not sb.done and (datetime.now() - start_time).total_seconds() < eval_length:
                 sleep(0.01)
-                if (datetime.now() - start_time).total_seconds() > 20.0 and sb.y > 3115:
+                if (datetime.now() - start_time).total_seconds() > 20.0 and sb.y < 300:
                     break
             bonus, completion, time = sb.get_scores()
             last_x = sb.x
