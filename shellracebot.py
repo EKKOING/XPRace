@@ -145,8 +145,8 @@ class ShellBot(threading.Thread):
             ai.setPowerLevel(self.power_level)
         except AttributeError:
            pass
-        # except Exception as e:
-        #     print("Error: " + str(e))
+        except Exception as e:
+             print("Error: " + str(e))
         self.calculate_bonus()
         ##print(f"Cpt: {self.current_checkpoint} Done: {self.done} Course Comp.: {self.completed_course}")
         ##print(f"Scores (Bonus, Completion %, Time): {self.get_scores()}")
