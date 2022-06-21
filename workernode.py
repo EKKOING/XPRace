@@ -54,7 +54,8 @@ while True:
             start_time = datetime.now()
             while not sb.done and (datetime.now() - start_time).total_seconds() < eval_length:
                 sleep(0.01)
-                if (datetime.now() - start_time).total_seconds() > 20.0 and sb.y < 300:
+                ## Early Termination
+                if (datetime.now() - start_time).total_seconds() > 10.0 and sb.y < 100:
                     break
             bonus, completion, time = sb.get_scores()
             last_x = sb.x
@@ -68,6 +69,7 @@ while True:
         else:
             if not waiting:
                 print('Waiting For Work Assignment!')
+                print("==================")
                 waiting = True
             ## Try to desync workers
             sleep(randint(5, 15))
