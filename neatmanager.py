@@ -13,16 +13,16 @@ import pymongo
 import wandb
 from bson.binary import Binary
 
-wandb.init(project="XPRace", entity="xprace", resume="must", id="34vuicpj")
+wandb.init(project="XPRace", entity="xprace", resume=False)
 wandb.config = {
     "pop": 100,
-    "bonus_mod": 0.98,
+    "bonus_mod": 1.0,
     "time_mod": 1.5,
     "episode_length": 120,
-    "completion_mod": 1.1,
-    "trial": 4,
+    "completion_mod": 1.3,
+    "trial": 5,
 }
-config_name = 'config'
+config_name = 'config2'
 
 # Output Utils
 CURSOR_UP_ONE = '\x1b[1A'
@@ -85,6 +85,7 @@ class EvolveManager:
     time_list = []
     current_species_list = []
     runtime_list = []
+    avg_speed_list = []
     best_time = 120.0
     prev_best_time = 120.0
 
@@ -130,7 +131,8 @@ class EvolveManager:
                 'finished_eval': False,
                 'algo': 'NEAT',
                 'species': species_id,
-                'trial': wandb.config['trial']
+                'trial': wandb.config['trial'],
+                'avg_speed': 0.0
             }
             if collection.find_one({'generation': self.generation, 'individual_num': individual_num, 'algo': 'NEAT', 'trial': wandb.config['trial']}):
                 collection.update_one(
@@ -141,7 +143,7 @@ class EvolveManager:
                         'trial': wandb.config['trial'],
                     }, {
                         '$set': {
-                            'started_eval': False, 'finished_eval': False, 'bonus': 0, 'completion': 0, 'time': -1.0, 'genome': net, 'started_at': None, 'key': key, 'species': species_id
+                            'started_eval': False, 'finished_eval': False, 'bonus': 0, 'completion': 0, 'time': -1.0, 'genome': net, 'started_at': None, 'key': key, 'species': species_id, 'avg_speed': 0.0
                         }
                     }
                 )
@@ -204,19 +206,26 @@ class EvolveManager:
         completion_list = []
         time_list = []
         runtime_list = []
+        avg_speed_list = []
         for genome_id, genome in genomes:
             key = genome.key
             results = collection.find_one(
                 {'key': key, 'generation': self.generation, 'trial': wandb.config['trial']})
             fitness = 0.0
+            if results == None:
+                print(f'No results found for {key}')
+                continue
+            runtime = results['runtime']
             bonus = results['bonus']
+            avg_speed = results['avg_speed']
+            avg_speed_list.append(avg_speed)
             bonus_list.append(bonus)
             bonus = bonus * wandb.config['bonus_mod']
-            completion = results['completion']
+            bonus = max(bonus, 0)
+            completion = max(results['completion'], 0.1)
             completion_list.append(completion)
             completion_bonus =  completion ** wandb.config['completion_mod']
             time = results['time']
-            runtime = results['runtime']
             time_bonus = 0.0
             if time > 0:
                 time_bonus = max((121.0 - time), 1.0) ** wandb.config['time_mod']
@@ -240,6 +249,7 @@ class EvolveManager:
         self.bonus_list = bonus_list
         self.time_list = time_list
         self.runtime_list = runtime_list
+        self.avg_speed_list = avg_speed_list
 
     def run(self, num_gens: int = 0):
         
@@ -270,7 +280,7 @@ class EvolveManager:
                     text=f"Gen: {self.generation} Genome {key} has been running for 3 minutes, marking for review",
                 )
 
-manager = EvolveManager(config_path, generation=640)
+manager = EvolveManager(config_path, generation=0)
 while True:
     try:
         manager.run(num_gens=1)
@@ -296,6 +306,10 @@ while True:
             "Max Runtime": np.max(manager.runtime_list),
             "Min Runtime": np.min(manager.runtime_list),
             "SD Runtime": np.std(manager.runtime_list),
+            "Avg Speed": np.mean(manager.avg_speed_list),
+            "Median Speed": np.median(manager.avg_speed_list),
+            "Max Speed": np.max(manager.avg_speed_list),
+            "Min Speed": np.min(manager.avg_speed_list),
             "Time Elapsed": (datetime.now() - manager.gen_start).total_seconds(),
             "Time": datetime.now(),
             "Num Species": len(manager.current_species_list),
