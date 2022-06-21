@@ -34,10 +34,12 @@ class ShellBot(threading.Thread):
     gamemap: str = "testtrack"
     completed_course: bool = False
     done: bool = False
-    start_marker = 50
-    finish_marker = 3400
-    start_time = datetime.now()
-    course_time = -1.0
+    start_marker: int = 50
+    finish_marker: int = 3400
+    start_time: datetime = datetime.now()
+    course_time: float = -1.0
+    average_speed: float = 0.0
+    cum_speed: float = 0.0
     
     ## Configuration Settings
     safety_margin: float = 1.1
@@ -124,6 +126,8 @@ class ShellBot(threading.Thread):
             self.completed_course = False
             self.course_time = -1.0
             self.frame = 0
+            self.average_speed = 0.0
+            self.cum_speed = 0.0
             ai.thrust(1)
 
         try:
@@ -238,13 +242,18 @@ class ShellBot(threading.Thread):
         self.last_turn = self.turn_val
     
     def calculate_bonus(self,) -> None:
+        self.cum_speed += self.speed
+        if self.frame != 0:
+            self.average_speed = self.cum_speed / self.frame
+        else:
+            self.average_speed = self.speed
+
         step_bonus = 0.0
         speed_bonus = 0.0
-        if self.speed > 1.0:
-            speed_bonus = 0.01
+        if self.speed > 0.5:
+            speed_bonus = (self.speed ** 1.1) / 150.0
 
         if self.alive == 1.0 and not self.done:
-            step_bonus += 0.001
             step_bonus += speed_bonus
         self.cum_bonus += step_bonus
     
