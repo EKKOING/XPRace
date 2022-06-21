@@ -60,10 +60,11 @@ while True:
             bonus, completion, time = sb.get_scores()
             last_x = sb.x
             last_y = sb.y
+            avg_speed = round(sb.average_speed, 3)
             runtime = round((datetime.now() - start_time).total_seconds(), 3)
             collection.update_one({'_id': genome['_id']}, {
-                                '$set': {'bonus': bonus, 'completion': completion, 'time': time, 'finished_eval': True, 'runtime': runtime, 'x': last_x, 'y': last_y}})
-            print(f'Generation {generation} number {individual_num} Species: {species} finished evaluation! Bonus: {bonus} Completion: {completion} Time: {time} Runtime: {runtime}s')
+                                '$set': {'bonus': bonus, 'completion': completion, 'time': time, 'finished_eval': True, 'runtime': runtime, 'x': last_x, 'y': last_y, 'avg_speed': avg_speed}})
+            print(f'Generation {generation} number {individual_num} Species: {species} finished evaluation! Bonus: {round(bonus, 3)} Completion: {round(completion, 3)} Time: {time} Runtime: {runtime}s Avg Speed: {avg_speed}')
             print("==================")
             waiting = False
         else:
