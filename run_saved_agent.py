@@ -25,20 +25,20 @@ except ValueError:
     print('Generation must be an integer!')
     exit()
 
-algorithm = input("Algorithm (GA/NEAT): ")
-if algorithm == 'GA' or algorithm == 'ga':
-    algorithm = 'ga'
-elif algorithm == 'NEAT' or algorithm == 'neat':
-    algorithm = 'NEAT'
-else:
-    print('Invalid algorithm!')
+trial = input("Trial: ")
+try:
+    trial = float(trial)
+except ValueError:
+    trial = int(trial)
+except Exception:
+    print('Trial must be an integer or float!')
     exit()
 
-num_agents = collection.count_documents({'generation': generation, 'algo': algorithm, 'genome': {'$ne': None}})
+num_agents = collection.count_documents({'generation': generation, 'trial': trial, 'genome': {'$ne': None}})
 while num_agents == 0:
     generation += 1
-    print(f'Searching for {algorithm}-{generation}!')
-    num_agents = collection.count_documents({'generation': generation, 'algo': algorithm, 'genome': {'$ne': None}})
+    print(f'Searching for {trial}-{generation}!')
+    num_agents = collection.count_documents({'generation': generation, 'trial': trial, 'genome': {'$ne': None}})
 
 print(f'{num_agents} agents found in generation {generation}!')
 
@@ -54,8 +54,8 @@ eval_length = 120.0
 print('==== RUN START ====')
 while True:
     try:
-        for genome in collection.find({'generation': generation, 'algo': algorithm, 'genome': {'$ne': None}}).sort([('completion', pymongo.DESCENDING), ('time', pymongo.ASCENDING)]):
-            print(f'Using {algorithm} {genome["generation"]}-{genome["individual_num"]}!')
+        for genome in collection.find({'generation': generation, 'trial': trial, 'genome': {'$ne': None}}).sort([('completion', pymongo.DESCENDING), ('time', pymongo.ASCENDING)]):
+            print(f'Using {trial} {genome["generation"]}-{genome["individual_num"]}!')
             sb.nn = pickle.loads(genome['genome'])
             sb.reset()
             while sb.done or sb.awaiting_reset:
