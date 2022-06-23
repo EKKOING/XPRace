@@ -512,7 +512,7 @@ class ShellBot(threading.Thread):
             float: angle to the second point from the first point
         '''        
         x_diff = x2 - x1
-        y_diff = y2 - x1
+        y_diff = y2 - y1
 
         angle_to = math.degrees(
             math.atan(abs(y_diff) / abs(x_diff + 0.0000001)))
