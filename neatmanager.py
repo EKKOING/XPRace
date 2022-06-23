@@ -20,9 +20,9 @@ wandb.config = {
     "time_mod": 1.5,
     "episode_length": 120,
     "completion_mod": 1.3,
-    "trial": 5,
+    "trial": 6,
 }
-config_name = 'config2'
+config_name = 'config3'
 
 # Output Utils
 CURSOR_UP_ONE = '\x1b[1A'
