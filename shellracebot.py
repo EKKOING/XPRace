@@ -40,6 +40,8 @@ class ShellBot(threading.Thread):
     course_time: float = -1.0
     average_speed: float = 0.0
     cum_speed: float = 0.0
+    max_y: float = 0.0
+    max_y_frame: int = 0
     
     ## Configuration Settings
     safety_margin: float = 1.1
@@ -128,6 +130,8 @@ class ShellBot(threading.Thread):
             self.frame = 0
             self.average_speed = 0.0
             self.cum_speed = 0.0
+            self.max_y = 0.0
+            self.max_y_frame = 0
             ai.thrust(1)
 
         try:
@@ -281,6 +285,11 @@ class ShellBot(threading.Thread):
         '''
         if self.frame < 28 or self.done and not self.awaiting_reset:
             return
+        if self.y > self.max_y:
+            self.max_y = self.y
+            self.max_y_frame = self.frame
+        elif self.frame - self.max_y_frame > 280:
+            self.done = True
         if self.y >= self.finish_marker and self.alive == 1.0 and not self.awaiting_reset:
             self.completed_course = True
             self.done = True
