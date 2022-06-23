@@ -11,7 +11,7 @@ from neat import nn
 
 from shellracebot import ShellBot
 
-eval_length = 60
+eval_length = 120
 
 try:
     with open('creds.json') as f:
