@@ -219,6 +219,7 @@ class EvolveManager:
             bonus = results['bonus']
             avg_speed = results['avg_speed']
             avg_speed_list.append(avg_speed)
+            avg_speed_bonus = (avg_speed / 1.3) * wandb.config['bonus_mod']
             bonus_list.append(bonus)
             bonus = bonus * wandb.config['bonus_mod']
             bonus = max(bonus, 0)
@@ -229,7 +230,7 @@ class EvolveManager:
             time_bonus = 0.0
             if time > 0:
                 time_bonus = max((121.0 - time), 1.0) ** wandb.config['time_mod']
-            fitness = bonus + time_bonus + completion_bonus
+            fitness = avg_speed_bonus + time_bonus + completion_bonus
             try:
                 genome.fitness = fitness.real
             except AttributeError:
