@@ -1,4 +1,5 @@
 import json
+import subprocess
 import pickle
 from datetime import datetime, timedelta
 from random import randint
@@ -12,6 +13,8 @@ from neat import nn
 from shellracebot import ShellBot
 
 eval_length = 120
+trackname = "shorttrack"
+
 
 try:
     with open('creds.json') as f:
@@ -20,17 +23,22 @@ except FileNotFoundError:
     print('creds.json not found!')
     exit()
 
+print('Starting Server!')
+subprocess.Popen(['./xpilots', '-map', f'{trackname}.xp', '-noQuit', '-maxClientsPerIP', '500', '-password', 'test', '-worldlives', '999', '-reset', 'no', '-fps', '28'])
+
 db_string = creds['mongodb']
 client = pymongo.MongoClient(db_string)
 db = client.NEAT
 collection = db.genomes
 
 print('Starting Bot!')
-sb = ShellBot()
+sb = ShellBot("EKKO", trackname)
 sb.start()
 # Give Us Enough Time to Type Password In
-for idx in range(0, 10):
-    print(f'Grant Operator Perms in Next {10 - idx} Seconds!!!')
+sleep(1)
+sb.ask_for_perms = True
+for idx in range(0, 7):
+    print(f'Grant Operator Perms in Next {7 - idx} Seconds!!!')
     sleep(1)
 print("=== Beginning Work Cycle ===")
 waiting = False
@@ -61,10 +69,11 @@ while True:
             last_x = sb.x
             last_y = sb.y
             avg_speed = round(sb.average_speed, 3)
+            avg_completion_per_frame = round(sb.average_completion_per_frame, 3)
             runtime = round((datetime.now() - start_time).total_seconds(), 3)
             collection.update_one({'_id': genome['_id']}, {
-                                '$set': {'bonus': bonus, 'completion': completion, 'time': time, 'finished_eval': True, 'runtime': runtime, 'x': last_x, 'y': last_y, 'avg_speed': avg_speed}})
-            print(f'Generation {generation} number {individual_num} Species: {species} finished evaluation! Bonus: {round(bonus, 3)} Completion: {round(completion, 3)} Time: {time} Runtime: {runtime}s Avg Speed: {avg_speed}')
+                                '$set': {'bonus': bonus, 'completion': completion, 'time': time, 'finished_eval': True, 'runtime': runtime, 'x': last_x, 'y': last_y, 'avg_speed': avg_speed, 'avg_completion_per_frame': avg_completion_per_frame}})
+            print(f'Generation {generation} number {individual_num} Species: {species} finished evaluation! Bonus: {round(bonus, 3)} Completion: {round(completion, 3)} Time: {time} Runtime: {runtime}s Avg Speed: {avg_speed} Avg Completion: {avg_completion_per_frame}')
             print("==================")
             waiting = False
         else:
