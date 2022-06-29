@@ -22,6 +22,7 @@ wandb.config = {
     "completion_mod": 1.3,
     "trial": 7,
     "completion_per_frame_mod": 1.2,
+    "track": "shorttrack",
 }
 config_name = 'config3'
 
@@ -71,8 +72,6 @@ db = client.NEAT
 local_dir = os.path.dirname(__file__)
 config_path = os.path.join(local_dir, config_name)
 
-# TODO: load generation number from mongodb
-
 
 class EvolveManager:
     generation = 0
@@ -86,7 +85,7 @@ class EvolveManager:
     time_list = []
     avg_completion_list = []
     current_species_list = []
-    runtime_list = []
+    runtime_list = [10.0, 10.0]
     avg_speed_list = []
     best_time = 120.0
     prev_best_time = 120.0
@@ -180,8 +179,7 @@ class EvolveManager:
                 first_sleep = False
             print(f'=== {datetime.now().strftime("%H:%M:%S")} ===\n{uncompleted_training} genomes still need to be evaluated\n{started_training} currently being evaluated\n{finished_training} have been evaluated')
             progress_bar(finished_training, started_training, len(genomes))
-            secs_tg = (ceil(uncompleted_training *
-                       wandb.config['episode_length'] / (self.num_workers + 1)))
+            secs_tg = (ceil(uncompleted_training * np.mean(self.runtime_list) / (self.num_workers + 1)))
             if secs_tg != last_secs_tg:
                 secs_since_tg_update = 0
             last_secs_tg = secs_tg
@@ -226,7 +224,9 @@ class EvolveManager:
             avg_speed_bonus = (avg_speed / 1.3) * wandb.config['bonus_mod']
             avg_completion_per_frame = results['avg_completion_per_frame']
             avg_completion_per_frame_list.append(avg_completion_per_frame)
-            avg_completion_per_frame_bonus = (avg_completion_per_frame * 10) ** wandb.config['completion_per_frame_mod']
+            avg_completion_per_frame_bonus = max((avg_completion_per_frame * 0.5) ** wandb.config['completion_per_frame_mod'], 0.0001)
+            avg_completion_per_frame_bonus = 20 - (40 / bonus)
+            avg_completion_per_frame_bonus = max(avg_completion_per_frame_bonus, 0)
             bonus_list.append(bonus)
             bonus = bonus * wandb.config['bonus_mod']
             bonus = max(bonus, 0.0001)
@@ -330,6 +330,8 @@ while True:
             "Time Elapsed": (datetime.now() - manager.gen_start).total_seconds(),
             "Time": datetime.now(),
             "Num Species": len(manager.current_species_list),
+            "Population Size": len(manager.fit_list),
+            "Num Workers": manager.num_workers,
         }
         if len(manager.time_list) != 0:
             log["Avg Time"] = np.mean(manager.time_list)
