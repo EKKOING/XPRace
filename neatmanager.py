@@ -20,7 +20,8 @@ wandb.config = {
     "time_mod": 1.5,
     "episode_length": 120,
     "completion_mod": 1.3,
-    "trial": 6,
+    "trial": 7,
+    "completion_per_frame_mod": 1.2,
 }
 config_name = 'config3'
 
@@ -83,6 +84,7 @@ class EvolveManager:
     completion_list = []
     bonus_list = []
     time_list = []
+    avg_completion_list = []
     current_species_list = []
     runtime_list = []
     avg_speed_list = []
@@ -132,7 +134,8 @@ class EvolveManager:
                 'algo': 'NEAT',
                 'species': species_id,
                 'trial': wandb.config['trial'],
-                'avg_speed': 0.0
+                'avg_speed': 0.0,
+                'avg_completion_per_frame': 0.0
             }
             if collection.find_one({'generation': self.generation, 'individual_num': individual_num, 'algo': 'NEAT', 'trial': wandb.config['trial']}):
                 collection.update_one(
@@ -143,7 +146,7 @@ class EvolveManager:
                         'trial': wandb.config['trial'],
                     }, {
                         '$set': {
-                            'started_eval': False, 'finished_eval': False, 'bonus': 0, 'completion': 0, 'time': -1.0, 'genome': net, 'started_at': None, 'key': key, 'species': species_id, 'avg_speed': 0.0
+                            'started_eval': False, 'finished_eval': False, 'bonus': 0, 'completion': 0, 'time': -1.0, 'genome': net, 'started_at': None, 'key': key, 'species': species_id, 'avg_speed': 0.0, 'avg_completion_per_frame': 0.0
                         }
                     }
                 )
@@ -207,6 +210,7 @@ class EvolveManager:
         time_list = []
         runtime_list = []
         avg_speed_list = []
+        avg_completion_per_frame_list = []
         for genome_id, genome in genomes:
             key = genome.key
             results = collection.find_one(
@@ -220,8 +224,13 @@ class EvolveManager:
             avg_speed = results['avg_speed']
             avg_speed_list.append(avg_speed)
             avg_speed_bonus = (avg_speed / 1.3) * wandb.config['bonus_mod']
+            avg_completion_per_frame = results['avg_completion_per_frame']
+            avg_completion_per_frame_list.append(avg_completion_per_frame)
+            avg_completion_per_frame_bonus = (avg_completion_per_frame * 10) ** wandb.config['completion_per_frame_mod']
             bonus_list.append(bonus)
             bonus = bonus * wandb.config['bonus_mod']
+            bonus = max(bonus, 0.0001)
+            bonus = 20 - (40 / bonus)
             bonus = max(bonus, 0)
             completion = max(results['completion'], 0.1)
             completion_list.append(completion)
@@ -230,7 +239,7 @@ class EvolveManager:
             time_bonus = 0.0
             if time > 0:
                 time_bonus = max((121.0 - time), 1.0) ** wandb.config['time_mod']
-            fitness = avg_speed_bonus + time_bonus + completion_bonus
+            fitness = time_bonus + completion_bonus + avg_completion_per_frame_bonus
             try:
                 genome.fitness = fitness.real
             except AttributeError:
@@ -251,6 +260,7 @@ class EvolveManager:
         self.time_list = time_list
         self.runtime_list = runtime_list
         self.avg_speed_list = avg_speed_list
+        self.avg_completion_list = avg_completion_per_frame_list
 
     def run(self, num_gens: int = 0):
         
@@ -311,6 +321,12 @@ while True:
             "Median Speed": np.median(manager.avg_speed_list),
             "Max Speed": np.max(manager.avg_speed_list),
             "Min Speed": np.min(manager.avg_speed_list),
+            "SD Speed": np.std(manager.avg_speed_list),
+            "Avg Completion Per Frame": np.mean(manager.avg_completion_list),
+            "Median Completion Per Frame": np.median(manager.avg_completion_list),
+            "Max Completion Per Frame": np.max(manager.avg_completion_list),
+            "Min Completion Per Frame": np.min(manager.avg_completion_list),
+            "SD Completion Per Frame": np.std(manager.avg_completion_list),
             "Time Elapsed": (datetime.now() - manager.gen_start).total_seconds(),
             "Time": datetime.now(),
             "Num Species": len(manager.current_species_list),
