@@ -23,6 +23,8 @@ class ShellBot(threading.Thread):
     ## Initialization Settings
     username: str = "Kerbal"
     headless: bool = False
+    gamemap: str = ""
+    test_mode: bool = False
 
     ## Neat Info
     nn = None
@@ -31,17 +33,20 @@ class ShellBot(threading.Thread):
     max_thrust_val = -999
 
     ## Racing Info
-    gamemap: str = "testtrack"
     completed_course: bool = False
     done: bool = False
     start_marker: int = 50
-    finish_marker: int = 3400
+    finish_marker: int = 1670
     start_time: datetime = datetime.now()
     course_time: float = -1.0
     average_speed: float = 0.0
     cum_speed: float = 0.0
-    max_y: float = 0.0
-    max_y_frame: int = 0
+    average_completion_per_frame: float = 0.0
+    cum_completion_per_frame: float = 0.0
+    completion: float = 0.0
+    last_completion: float = 0.0
+    max_completion: float = 0.0
+    max_completion_frame: int = 0
     
     ## Configuration Settings
     safety_margin: float = 1.1
@@ -65,6 +70,7 @@ class ShellBot(threading.Thread):
     started: bool = False
     died_but_no_reset: bool = False
     reset_frame: int = 0
+    ask_for_perms = False
 
     ## State of the bot
     alive: float = 0.0
@@ -93,12 +99,15 @@ class ShellBot(threading.Thread):
     ## Track Info
     checkpoints: List[List[int]] = [[0, 0]]
 
-    def __init__(self, username:str="InitNoName") -> None:
+    def __init__(self, username:str="InitNoName", mapname: str = 'testtrack') -> None:
         super(ShellBot, self).__init__()
         self.username = username
         self.max_turntime = math.ceil(180 / self.turnspeed)
+        self.gamemap = mapname
         with open(f'{self.gamemap}.json', 'r') as f:
-            self.checkpoints = json.load(f)
+            map_data = json.load(f)
+            self.checkpoints = map_data["checkpoints"]
+            self.finish_marker = map_data["finish_marker"]
         
     
     ## For Interfacing with the Environment
@@ -115,26 +124,34 @@ class ShellBot(threading.Thread):
     def close_bot(self,) -> None:
         self.close_now = True
 
+    def reset_values(self,) -> None:
+        self.awaiting_reset = False
+        self.start_time = datetime.now()
+        self.died_but_no_reset = False
+        self.cum_bonus = 0.0
+        self.done = False
+        self.completed_course = False
+        self.course_time = -1.0
+        self.frame = 0
+        self.average_speed = 0.0
+        self.cum_speed = 0.0
+        self.completion = 0.0
+        self.last_completion = 0.0
+        self.max_completion = 0.0
+        self.max_completion_frame = 0
+
     def run_loop(self,) -> None:
         ##print(f"Bot starting frame {self.frame}")
         self.reset_flags()
         self.frame += 1
-        if self.alive == 1.0 and self.awaiting_reset and self.reset_frame + 28 <= self.frame:
-            self.awaiting_reset = False
-            self.start_time = datetime.now()
-            self.died_but_no_reset = False
-            self.cum_bonus = 0.0
-            self.done = False
-            self.completed_course = False
-            self.course_time = -1.0
-            self.frame = 0
-            self.average_speed = 0.0
-            self.cum_speed = 0.0
-            self.max_y = 0.0
-            self.max_y_frame = 0
-            ai.thrust(1)
 
         try:
+            if self.ask_for_perms:
+                ai.talk("/password test")
+                self.ask_for_perms = False
+            if self.alive == 1.0 and self.awaiting_reset and self.reset_frame + 28 <= self.frame:
+                self.reset_values()
+                ai.thrust(1)
             if self.reset_now:
                 self.reset_now = False
                 ai.talk("/reset all")
@@ -156,7 +173,7 @@ class ShellBot(threading.Thread):
         except Exception as e:
              print("Error: " + str(e))
         self.calculate_bonus()
-        ##print(f"Cpt: {self.current_checkpoint} Done: {self.done} Course Comp.: {self.completed_course}")
+        ##print(f"Cpt: {self.current_checkpoint} Completion: {round(self.get_completion_percent(), 1)} Done: {self.done} Course Comp.: {self.completed_course}")
         ##print(f"Scores (Bonus, Completion %, Time): {self.get_scores()}")
         ##print(f'Alive {self.alive} - Done {self.done} - Course Comp. {self.completed_course} - Awaiting Reset {self.awaiting_reset} - Frame {self.frame} - Reset Frame {self.reset_frame}')
         self.last_alive = self.alive
@@ -184,12 +201,17 @@ class ShellBot(threading.Thread):
         self.current_checkpoint = self.get_current_checkpoint()
 
         checkpoint_info = []
-        for checkpoint_num in range(self.current_checkpoint + 1, self.current_checkpoint + 4):
+        first_checkpoint = True
+        for checkpoint_num in range(self.current_checkpoint, self.current_checkpoint + 3):
             dist, angle = self.get_checkpoint_info(checkpoint_num)
             dist = 1.0 - (float(dist) / float(self.scan_distance))
+            if first_checkpoint:
+                ##print(f"Checkpoint Bearing: {self.angle_diff(self.heading, angle)}")
+                first_checkpoint = False
             angle = self.angle_diff(self.tracking, angle) / 180.0
             checkpoint_info.append(dist)
             checkpoint_info.append(angle)
+
 
         ## Organize the values
         oberservations = [ship_speed, wall_track, angle_diff_tracking, closest_wall, angle_diff_closest, wall_front, wall_back, wall_left, wall_right, wall_15_right, wall_15_left, wall_30_right, wall_30_left, tt_tracking, tt_retro_point, self.last_thrust, self.last_turn]
@@ -219,8 +241,10 @@ class ShellBot(threading.Thread):
 
         ## Forward Propogation
         inputs = np.array(observations)
-        outputs = self.nn.activate(inputs)
-        ##outputs = [0,0]
+        if not self.test_mode:
+            outputs = self.nn.activate(inputs)
+        else:
+            outputs = [0,0]
 
         self.thrust_val = outputs[0]
         self.turn_val = outputs[1]
@@ -247,9 +271,12 @@ class ShellBot(threading.Thread):
     
     def calculate_bonus(self,) -> None:
         self.cum_speed += self.speed
+        self.cum_completion_per_frame += self.completion - self.last_completion
         if self.frame != 0:
             self.average_speed = self.cum_speed / self.frame
+            self.average_completion_per_frame = self.cum_completion_per_frame / self.frame
         else:
+            self.average_completion_per_frame = 0.0
             self.average_speed = self.speed
 
         step_bonus = 0.0
@@ -262,8 +289,21 @@ class ShellBot(threading.Thread):
         self.cum_bonus += step_bonus
     
     def get_scores(self,) -> Tuple:
-        completion_percentage_bonus = min((float(self.y - self.start_marker) / float(self.finish_marker - self.start_marker)) * 100.0, 100.0)
-        return self.cum_bonus, completion_percentage_bonus, self.course_time
+        completion_percentage_bonus = self.get_completion_percent()
+        return round(self.cum_bonus, 3), round(completion_percentage_bonus, 3), round(self.course_time, 3)
+    
+    def get_completion_percent(self,) -> float:
+        if self.y > self.finish_marker:
+            return 100.0
+        
+        percent_per_checkpt = 100.0 / float(len(self.checkpoints))
+        checkpt_idx = self.get_current_checkpoint() - 1
+        base_percentage = percent_per_checkpt * checkpt_idx
+        distance_to_checkpt = self.get_checkpoint_info(checkpt_idx)[0]
+        distance_btw_checkpt = self.get_distance(self.checkpoints[checkpt_idx][0], self.checkpoints[checkpt_idx][1], self.checkpoints[checkpt_idx + 1][0], self.checkpoints[checkpt_idx + 1][1])
+        percent_to_next = (distance_to_checkpt / distance_btw_checkpt) * percent_per_checkpt
+        return max(min(base_percentage + percent_to_next, 100.0), 0.1)
+
     
     def perform_action(self,) -> None:
         if self.thrust == True:
@@ -285,10 +325,10 @@ class ShellBot(threading.Thread):
         '''
         if self.frame < 28 or self.done and not self.awaiting_reset:
             return
-        if self.y > self.max_y:
-            self.max_y = self.y
-            self.max_y_frame = self.frame
-        elif self.frame - self.max_y_frame > 280:
+        if self.completion > self.max_completion:
+            self.max_completion = self.completion
+            self.max_completion_frame = self.frame
+        elif self.frame - self.max_completion_frame > 280:
             self.done = True
         if self.y >= self.finish_marker and self.alive == 1.0 and not self.awaiting_reset:
             self.completed_course = True
@@ -304,11 +344,19 @@ class ShellBot(threading.Thread):
         '''get_current_checkpoint Returns the current checkpoint
         '''
         check_dists = []
-        for idx, checkpoint in enumerate(self.checkpoints):
-            check_dists.append(self.get_distance(self.x, self.y, checkpoint[0], checkpoint[1]))
+        for checkpoint in self.checkpoints:
+           check_dists.append(self.get_distance(self.x, self.y, checkpoint[0], checkpoint[1]))
         
         current_idx = int(np.argmin(check_dists))
+        current_y = self.checkpoints[current_idx][1]
+        if self.y + 10 > current_y:
+            current_idx += 1
         return current_idx
+
+        # for idx, checkpoint in enumerate(self.checkpoints):
+        #     if self.y + 40 > checkpoint[1]:
+        #         return idx + 1
+
     
     def get_checkpoint_info(self, checkpoint_idx: int) -> tuple:
         '''get_checkpoint_info gets information about the checkpoint
@@ -375,6 +423,9 @@ class ShellBot(threading.Thread):
 
         ## Timings to timing pts
         self.tt_retro_point = min(self.tt_tracking - ((self.max_turntime + self.tt_retro) * self.safety_margin + 1), 70.0)
+
+        self.last_completion = self.completion
+        self.completion = self.get_completion_percent()
 
     ##Utility Functions
     def update_closest_wall(self,) -> None:
@@ -583,12 +634,16 @@ class ShellBot(threading.Thread):
         return tt_feel
 
 if __name__ == "__main__":
-    test = ShellBot('Test')
+    test = ShellBot('Test', 'shorttrack')
+    test_mode = True
+    sleep(3)
+    test.ask_for_perms = True
     test.start()
     while not test.done:
         pass
     print('END RUN 1')
     print(f'{test.get_scores()}')
+    print(f'{test.average_completion_per_frame}')
     test.reset()
     while test.done:
         pass
