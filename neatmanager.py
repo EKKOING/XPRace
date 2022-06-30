@@ -224,8 +224,8 @@ class EvolveManager:
             avg_speed_bonus = (avg_speed / 1.3) * wandb.config['bonus_mod']
             avg_completion_per_frame = results['avg_completion_per_frame']
             avg_completion_per_frame_list.append(avg_completion_per_frame)
-            avg_completion_per_frame_bonus = max((avg_completion_per_frame * 0.5) ** wandb.config['completion_per_frame_mod'], 0.0001)
-            avg_completion_per_frame_bonus = 20 - (40 / bonus)
+            avg_completion_per_frame_bonus = max(avg_completion_per_frame ** wandb.config['completion_per_frame_mod'], 0.0001)
+            avg_completion_per_frame_bonus = 20 - (40 / avg_completion_per_frame_bonus)
             avg_completion_per_frame_bonus = max(avg_completion_per_frame_bonus, 0)
             bonus_list.append(bonus)
             bonus = bonus * wandb.config['bonus_mod']
