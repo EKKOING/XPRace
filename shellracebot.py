@@ -274,7 +274,7 @@ class ShellBot(threading.Thread):
         self.cum_completion_per_frame += self.completion - self.last_completion
         if self.frame != 0:
             self.average_speed = self.cum_speed / self.frame
-            self.average_completion_per_frame = self.cum_completion_per_frame / self.frame
+            self.average_completion_per_frame = self.completion / self.frame
         else:
             self.average_completion_per_frame = 0.0
             self.average_speed = self.speed
