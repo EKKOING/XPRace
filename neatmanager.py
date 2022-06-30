@@ -20,7 +20,7 @@ wandb.config = {
     "time_mod": 1.5,
     "episode_length": 120,
     "completion_mod": 1.3,
-    "trial": 7,
+    "trial": 7.5,
     "completion_per_frame_mod": 1.2,
     "track": "shorttrack",
 }
@@ -224,13 +224,13 @@ class EvolveManager:
             avg_speed_bonus = (avg_speed / 1.3) * wandb.config['bonus_mod']
             avg_completion_per_frame = results['avg_completion_per_frame']
             avg_completion_per_frame_list.append(avg_completion_per_frame)
-            avg_completion_per_frame_bonus = max(avg_completion_per_frame ** wandb.config['completion_per_frame_mod'], 0.0001)
-            avg_completion_per_frame_bonus = 20 - (40 / avg_completion_per_frame_bonus)
+            avg_completion_per_frame_bonus = max(avg_completion_per_frame, 0.0001)
+            avg_completion_per_frame_bonus = 15 - (2 / avg_completion_per_frame_bonus)
             avg_completion_per_frame_bonus = max(avg_completion_per_frame_bonus, 0)
             bonus_list.append(bonus)
             bonus = bonus * wandb.config['bonus_mod']
             bonus = max(bonus, 0.0001)
-            bonus = 20 - (40 / bonus)
+            bonus = 30 - (20 / bonus)
             bonus = max(bonus, 0)
             completion = max(results['completion'], 0.1)
             completion_list.append(completion)
@@ -239,7 +239,7 @@ class EvolveManager:
             time_bonus = 0.0
             if time > 0:
                 time_bonus = max((121.0 - time), 1.0) ** wandb.config['time_mod']
-            fitness = time_bonus + completion_bonus + avg_completion_per_frame_bonus
+            fitness = time_bonus + completion_bonus + avg_completion_per_frame_bonus + bonus
             try:
                 genome.fitness = fitness.real
             except AttributeError:
