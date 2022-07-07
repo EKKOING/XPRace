@@ -22,7 +22,7 @@ wandb.config = {
     "completion_mod": 1.3,
     "trial": 7.5,
     "completion_per_frame_mod": 1.2,
-    "track": "shorttrack",
+    "track": "testtrack",
 }
 config_name = 'config3'
 
@@ -332,6 +332,7 @@ while True:
             "Num Species": len(manager.current_species_list),
             "Population Size": len(manager.fit_list),
             "Num Workers": manager.num_workers,
+            "Num Completions": len(manager.time_list),
         }
         if len(manager.time_list) != 0:
             log["Avg Time"] = np.mean(manager.time_list)
