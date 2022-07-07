@@ -9,7 +9,7 @@ fitness_threshold       = 500.0
 num_inputs              = 23
 num_hidden              = 2
 num_outputs             = 2
-initial_connection      = full_direct
+initial_connection      = partial_direct 0.8
 feed_forward            = False
 compatibility_disjoint_coefficient    = 1.0
 compatibility_weight_coefficient      = 1.0
@@ -49,7 +49,7 @@ enabled_default         = True
 enabled_mutate_rate     = 0.01
 
 [DefaultSpeciesSet]
-compatibility_threshold = 2.5
+compatibility_threshold = 2.8
 
 [DefaultStagnation]
 species_fitness_func = max
@@ -57,6 +57,6 @@ max_stagnation       = 50
 species_elitism    = 3
 
 [DefaultReproduction]
-elitism            = 3
+elitism            = 2
 survival_threshold = 0.2
 min_species_size   = 2
