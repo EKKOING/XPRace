@@ -348,9 +348,15 @@ class ShellBot(threading.Thread):
            check_dists.append(self.get_distance(self.x, self.y, checkpoint[0], checkpoint[1]))
         
         current_idx = int(np.argmin(check_dists))
-        current_y = self.checkpoints[current_idx][1]
-        if self.y + 10 > current_y:
+        dist_to_next = check_dists[current_idx + 1]
+        current_wpt = self.checkpoints[current_idx]
+        next_wpt = self.checkpoints[current_idx + 1]
+
+        dist_btw_next = self.get_distance(current_wpt[0], current_wpt[1], next_wpt[0], next_wpt[1])
+
+        if dist_to_next < dist_btw_next + 15:
             current_idx += 1
+
         return current_idx
 
         # for idx, checkpoint in enumerate(self.checkpoints):
@@ -634,7 +640,7 @@ class ShellBot(threading.Thread):
         return tt_feel
 
 if __name__ == "__main__":
-    test = ShellBot('Test', 'shorttrack')
+    test = ShellBot('Test', 'testtrack')
     test_mode = True
     sleep(3)
     test.ask_for_perms = True
