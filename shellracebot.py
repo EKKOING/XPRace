@@ -293,14 +293,14 @@ class ShellBot(threading.Thread):
         return round(self.cum_bonus, 3), round(completion_percentage_bonus, 3), round(self.course_time, 3)
     
     def get_completion_percent(self,) -> float:
-        if self.y > self.finish_marker:
+        if self.y >= self.finish_marker or self.completed_course:
             return 100.0
         
-        percent_per_checkpt = 100.0 / float(len(self.checkpoints))
+        percent_per_checkpt = 100.0 / float(len(self.checkpoints) - 1)
         checkpt_idx = self.get_current_checkpoint() - 1
         base_percentage = percent_per_checkpt * checkpt_idx
         distance_to_checkpt = self.get_checkpoint_info(checkpt_idx)[0]
-        distance_btw_checkpt = self.get_distance(self.checkpoints[checkpt_idx][0], self.checkpoints[checkpt_idx][1], self.checkpoints[checkpt_idx + 1][0], self.checkpoints[checkpt_idx + 1][1])
+        distance_btw_checkpt = self.get_distance(self.checkpoints[checkpt_idx][0], self.checkpoints[checkpt_idx][1], self.checkpoints[min(checkpt_idx + 1, len(self.checkpoints) - 1)][0], self.checkpoints[min(checkpt_idx + 1, len(self.checkpoints) - 1)][1])
         percent_to_next = (distance_to_checkpt / distance_btw_checkpt) * percent_per_checkpt
         return max(min(base_percentage + percent_to_next, 100.0), 0.1)
 
@@ -348,13 +348,13 @@ class ShellBot(threading.Thread):
            check_dists.append(self.get_distance(self.x, self.y, checkpoint[0], checkpoint[1]))
         
         current_idx = int(np.argmin(check_dists))
-        dist_to_next = check_dists[current_idx + 1]
+        dist_to_next = check_dists[min(current_idx + 1, len(check_dists) - 1)]
         current_wpt = self.checkpoints[current_idx]
-        next_wpt = self.checkpoints[current_idx + 1]
+        next_wpt = self.checkpoints[min(current_idx + 1, len(check_dists) - 1)]
 
         dist_btw_next = self.get_distance(current_wpt[0], current_wpt[1], next_wpt[0], next_wpt[1])
 
-        if dist_to_next < dist_btw_next + 15:
+        if dist_to_next < dist_btw_next + 25 and current_idx < len(self.checkpoints) - 1:
             current_idx += 1
 
         return current_idx
@@ -641,10 +641,10 @@ class ShellBot(threading.Thread):
 
 if __name__ == "__main__":
     test = ShellBot('Test', 'testtrack')
-    test_mode = True
+    test.test_mode = True
     sleep(3)
-    test.ask_for_perms = True
     test.start()
+    test.ask_for_perms = True
     while not test.done:
         pass
     print('END RUN 1')
