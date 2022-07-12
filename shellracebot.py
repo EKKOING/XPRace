@@ -18,15 +18,8 @@ import libpyAI as ai
 import numpy as np
 from neat import nn
 
-# Output Utils
-CURSOR_UP_ONE = '\x1b[1A'
-ERASE_LINE = '\x1b[2K'
+from consoleutils import delete_last_lines, get_bar_graph
 
-
-def delete_last_lines(n: int = 1) -> None:
-    for _ in range(n):
-        sys.stdout.write(CURSOR_UP_ONE)
-        sys.stdout.write(ERASE_LINE)
 
 class ShellBot(threading.Thread):
 

@@ -14,6 +14,7 @@ import wandb
 from bson.binary import Binary
 
 wandb.init(project="XPRace", entity="xprace", resume=False)
+from consoleutils import delete_last_lines, progress_bar
 wandb.config = {
     "pop": 100,
     "bonus_mod": 1.0,
@@ -25,36 +26,6 @@ wandb.config = {
     "track": "testtrack",
 }
 config_name = 'config3'
-
-# Output Utils
-CURSOR_UP_ONE = '\x1b[1A'
-ERASE_LINE = '\x1b[2K'
-
-
-def delete_last_lines(n: int = 1) -> None:
-    for _ in range(n):
-        sys.stdout.write(CURSOR_UP_ONE)
-        sys.stdout.write(ERASE_LINE)
-
-
-def progress_bar(progress: float, in_progress: float, total: float) -> None:
-    left = '['
-    right = ']'
-    bar_length = 30
-    fill = '|'
-    in_progress_fill = '>'
-    percent = progress / total
-    in_percent = in_progress / total
-    fill_amt = int(round(percent * bar_length))
-    fill_str = ''
-    for _ in range(fill_amt):
-        fill_str += fill
-    in_fill_amt = int(round(in_percent * bar_length))
-    for _ in range(in_fill_amt):
-        fill_str += in_progress_fill
-    for _ in range(bar_length - (fill_amt + in_fill_amt)):
-        fill_str += ' '
-    print(f'{left}{fill_str}{right} {percent:.2%}')
 
 
 try:
