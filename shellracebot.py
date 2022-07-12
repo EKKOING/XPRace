@@ -4,11 +4,12 @@ Author: Nicholas Lorentzen
 Date: 20220607
 '''
 
-from datetime import datetime, timedelta
 import json
 import math
 import pickle
+import sys
 import threading
+from datetime import datetime, timedelta
 from random import randint, random
 from time import sleep
 from typing import List, Tuple, Union
@@ -17,6 +18,15 @@ import libpyAI as ai
 import numpy as np
 from neat import nn
 
+# Output Utils
+CURSOR_UP_ONE = '\x1b[1A'
+ERASE_LINE = '\x1b[2K'
+
+
+def delete_last_lines(n: int = 1) -> None:
+    for _ in range(n):
+        sys.stdout.write(CURSOR_UP_ONE)
+        sys.stdout.write(ERASE_LINE)
 
 class ShellBot(threading.Thread):
 
@@ -25,6 +35,8 @@ class ShellBot(threading.Thread):
     headless: bool = False
     gamemap: str = ""
     test_mode: bool = False
+    show_info: bool = False
+    just_printed_info: bool = False
 
     ## Neat Info
     nn = None
@@ -176,8 +188,72 @@ class ShellBot(threading.Thread):
         ##print(f"Cpt: {self.current_checkpoint} Completion: {round(self.get_completion_percent(), 1)} Done: {self.done} Course Comp.: {self.completed_course}")
         ##print(f"Scores (Bonus, Completion %, Time): {self.get_scores()}")
         ##print(f'Alive {self.alive} - Done {self.done} - Course Comp. {self.completed_course} - Awaiting Reset {self.awaiting_reset} - Frame {self.frame} - Reset Frame {self.reset_frame}')
+        if self.test_mode or self.show_info:
+            self.print_info()
+        else:
+            self.just_printed_info = False
         self.last_alive = self.alive
 
+    def print_info(self,) -> None:
+        if self.just_printed_info:
+            delete_last_lines(14)
+        feeler_view = []
+        for row in range(0, 11):
+            blank_row = []
+            for column in range(0, 21):
+                blank_row.append(" ")
+            feeler_view.append(blank_row)
+        feeler_view[10][10] = "^"
+        feelers = [self.wall_front, self.wall_left, self.wall_right, self.wall_30_left, self.wall_30_right]
+        feeler_chars = ['|', '-', '\\', '/']
+        feeler_percents = []
+        for idx, feeler in enumerate(feelers):
+            feeler = float(min(feeler, 500.0))
+            feeler_percent = feeler / 500.0
+            feeler_percent = int(round(feeler_percent * 10.0))
+            feeler_percents.append(feeler_percent)
+        
+        for idx in range(0, feeler_percents[0]):
+            feeler_view[9 - idx][10] = feeler_chars[0]
+        
+        feeler_percents[1] = int(round(feeler_percents[1] / 1.0))
+        for idx in range(0, feeler_percents[1]):
+            feeler_view[10][9 - idx] = feeler_chars[1]
+        
+        feeler_percents[2] = int(round(feeler_percents[2] / 1.0))
+        for idx in range(0, feeler_percents[2]):
+            feeler_view[10][11 + idx] = feeler_chars[1]
+        
+        feeler_percents[3] = int(round(feeler_percents[3] / 1.0))
+        for idx in range(0, feeler_percents[3]):
+            feeler_view[9 - idx][9 - idx] = feeler_chars[2]
+
+        feeler_percents[4] = int(round(feeler_percents[4] / 1.0))
+        for idx in range(0, feeler_percents[4]):
+            feeler_view[9 - idx][11 + idx] = feeler_chars[3]
+
+        # checkpoint_x_diff = min(self.checkpoints[self.current_checkpoint][0] - self.x, 500.0) / 500.0
+        # checkpoint_y_diff = max(min(self.checkpoints[self.current_checkpoint][1] - self.y, 500.0), 0) / 500.0
+        # checkpoint_x_diff = int(round(checkpoint_x_diff * 10.0))
+        # checkpoint_y_diff = int(round(checkpoint_y_diff * 10.0))
+
+        # feeler_view[10 - checkpoint_y_diff][10 + checkpoint_x_diff] = "*"
+        
+        output = ''
+        for idx in range(0, len(feeler_view[0]) + 2):
+            output += '_'
+        output += '\n'
+        for feeler_row in feeler_view:
+            output += '|'
+            for char in feeler_row:
+                output += char
+            output += '|\n'
+        for idx in range(0, len(feeler_view[0]) + 2):
+            output += '-'
+        output += '\n'
+        print(output)
+        self.just_printed_info = True
+        
     def get_observations(self,) -> List[float]:
         ## Normalize the values
         wall_track = 1.0 - (float(self.track_wall) / float(self.scan_distance))
