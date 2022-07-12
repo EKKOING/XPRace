@@ -8,7 +8,7 @@ import pymongo
 from GANet import GANet
 from neat import nn
 
-trackname = "shorttrack"
+trackname = "testtrack"
 eval_length = 120.0
 
 try:
@@ -20,7 +20,7 @@ except FileNotFoundError:
 
 print('Starting Server!')
 subprocess.Popen(['./xpilots', '-map', f'{trackname}.xp', '-noQuit', '-maxClientsPerIP', '500', '-password', 'test', '-worldlives', '999', '-reset', 'no', '-fps', '28'])
-
+sleep(2)
 
 db_string = creds['mongodb']
 client = pymongo.MongoClient(db_string)
@@ -59,8 +59,8 @@ sb.start()
 sleep(1)
 sb.ask_for_perms = True
 # Give Us Enough Time to Type Password In
-for idx in range(0, 10):
-    print(f'Grant Operator Perms in Next {10 - idx} Seconds!!!')
+for idx in range(0, 3):
+    print(f'Granting Operator Perms in Next {3 - idx} Seconds!!!')
     sleep(1)
 
 print('==== RUN START ====')
@@ -73,10 +73,13 @@ while True:
             while sb.done or sb.awaiting_reset:
                 pass
             start_time = datetime.now()
+            sb.show_info = True
             while not sb.done and (datetime.now() - start_time).total_seconds() < eval_length:
                 sleep(0.01)
             bonus, completion, time = sb.get_scores()
             run_time = round((datetime.now() - start_time).total_seconds(), 3)
+            sb.show_info = False
+            sleep(0.1)
             print(f'Bonus: {round(bonus, 3)}, Completion: {round(completion, 3)}, Time: {round(time, 3)}s, Runtime: {run_time}s Avg S: {round(sb.average_speed, 3)} Avg C: {round(sb.average_completion_per_frame, 3)}')
     except KeyboardInterrupt:
         print('==== Exit Request Received! ====')
