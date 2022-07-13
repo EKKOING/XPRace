@@ -15,6 +15,7 @@ from bson.binary import Binary
 
 wandb.init(project="XPRace", entity="xprace", resume=False)
 from consoleutils import delete_last_lines, progress_bar
+from xpracefitness import get_fitness
 wandb.config = {
     "pop": 100,
     "bonus_mod": 1.0,
@@ -188,29 +189,22 @@ class EvolveManager:
             if results == None:
                 print(f'No results found for {key}')
                 continue
-            runtime = results['runtime']
+            try:
+                runtime = results['runtime']
+            except KeyError:
+                runtime = 120.0
+            completion = max(results['completion'], 0.1)
             bonus = results['bonus']
             avg_speed = results['avg_speed']
-            avg_speed_list.append(avg_speed)
-            avg_speed_bonus = (avg_speed / 1.3) * wandb.config['bonus_mod']
             avg_completion_per_frame = results['avg_completion_per_frame']
-            avg_completion_per_frame_list.append(avg_completion_per_frame)
-            avg_completion_per_frame_bonus = max(avg_completion_per_frame, 0.0001)
-            avg_completion_per_frame_bonus = 15 - (2 / avg_completion_per_frame_bonus)
-            avg_completion_per_frame_bonus = max(avg_completion_per_frame_bonus, 0)
-            bonus_list.append(bonus)
-            bonus = bonus * wandb.config['bonus_mod']
-            bonus = max(bonus, 0.0001)
-            bonus = 30 - (20 / bonus)
-            bonus = max(bonus, 0)
-            completion = max(results['completion'], 0.1)
-            completion_list.append(completion)
-            completion_bonus =  completion ** wandb.config['completion_mod']
             time = results['time']
-            time_bonus = 0.0
-            if time > 0:
-                time_bonus = max((121.0 - time), 1.0) ** wandb.config['time_mod']
-            fitness = time_bonus + completion_bonus + avg_completion_per_frame_bonus + bonus
+            avg_speed_list.append(avg_speed)
+            avg_completion_per_frame_list.append(avg_completion_per_frame)
+            completion_list.append(completion)
+            bonus_list.append(bonus)
+
+            fitness = get_fitness(completion, bonus, time, avg_speed, avg_completion_per_frame, wandb.config)
+
             try:
                 genome.fitness = fitness.real
             except AttributeError:
