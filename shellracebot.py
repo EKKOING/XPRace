@@ -200,7 +200,7 @@ class ShellBot(threading.Thread):
             feeler_view.append(blank_row)
         feeler_view[10][10] = "^"
         feelers = [self.wall_front, self.wall_left, self.wall_right, self.wall_30_left, self.wall_30_right]
-        feeler_chars = ['|', '-', '\\', '/']
+        feeler_chars = [u'\u2502', '─', u'\u2572', u'\u2571']
         feeler_percents = []
         for idx, feeler in enumerate(feelers):
             feeler = float(min(feeler, 500.0))
@@ -234,35 +234,40 @@ class ShellBot(threading.Thread):
 
         # feeler_view[10 - checkpoint_y_diff][10 + checkpoint_x_diff] = "*"
 
-        time_readout = f'Current Lap Time: {round((datetime.now() - self.start_time).total_seconds(), 3)}s'
-        completion_readout = f"{get_bar_graph(self.completion / 100.0)} - Course Completion: {round(self.completion, 2)}%"
-        steering_readout = f"{get_bar_graph(-self.turn_val, center=True)} - Steering: {round(self.turn_val, 2)}"
-        speed_readout = f"{get_bar_graph(self.last_observations[0])} - Speed: {round(self.speed, 2)}"
+        time_readout = f' Current Lap Time: {round((datetime.now() - self.start_time).total_seconds(), 3):6}s'
+        completion_readout = f"    {get_bar_graph(self.completion / 100.0)}    - Course Completion: {self.completion / 100.0:.2%}"
+        steering_readout = f"  1 {get_bar_graph(-self.turn_val, center=True)} -1 - Steering: {round(self.turn_val * 20.0, 2):+4} degrees"
+        speed_readout = f"  0 {get_bar_graph(self.last_observations[0])}  1 - Speed: {round(self.speed, 2):4} units/frame"
+        time_to_wall_readout = f"  0 {get_bar_graph(self.last_observations[13])}  1 - Time to Wall: {self.tt_tracking:3} frames"
+
+        waypoint_distance, waypoint_bearing = self.get_checkpoint_info(self.current_checkpoint)
+        waypoint_readout = f" Waypoint: {self.current_checkpoint:2} Distance: {round(waypoint_distance, 1):4} units Bearing: {round(waypoint_bearing, 2):+4} degrees"
 
         if self.thrust_val > self.cum_avg_thrust:
             self.cum_avg_thrust = self.thrust_val
         else:
             self.cum_avg_thrust = (self.cum_avg_thrust * 3 + self.thrust_val) / 4.0
-        thrust_readout = f"{get_bar_graph(self.cum_avg_thrust)} - Thrust: {round(self.thrust_val, 2)}"
+        thrust_readout = f"  0 {get_bar_graph(self.cum_avg_thrust)}  1 - Thrust: {round(self.thrust_val, 2):3} Smoothed: {round(self.cum_avg_thrust, 2):3}"
         
-        dash_graphs = [time_readout, completion_readout, thrust_readout, steering_readout, speed_readout]
+        dash_graphs = [time_readout, completion_readout, thrust_readout, steering_readout, speed_readout, time_to_wall_readout, waypoint_readout]
 
-        output = ''
-        for idx in range(0, len(feeler_view[0]) + 2):
-            output += '_'
-        output += '\n'
+        output = '┌'
+        for idx in range(len(feeler_view[0])):
+            output += '─'
+        output += '┐\n'
 
         for feeler_row in feeler_view:
-            output += '|'
+            output += '│'
             for char in feeler_row:
                 output += char
-            output += '|'
+            output += '│'
             if len(dash_graphs) != 0:
                 output += dash_graphs.pop(0)
             output += '\n'
-        for idx in range(0, len(feeler_view[0]) + 2):
-            output += '-'
-        output += '\n'
+        output += '└'
+        for idx in range(0, len(feeler_view[0])):
+            output += '─'
+        output += '┘\n'
 
         print(output)
         self.just_printed_info = True
