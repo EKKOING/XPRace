@@ -36,6 +36,7 @@ class ShellBot(threading.Thread):
     exploration_rate = 0.02
     cum_bonus = 0.0
     max_thrust_val = -999
+    last_observations = np.zeros(22).tolist()
 
     ## Racing Info
     completed_course: bool = False
@@ -66,6 +67,7 @@ class ShellBot(threading.Thread):
     turn_val: float = 1.0
     last_thrust: float = 0.0
     last_turn: float = 0.0
+    cum_avg_thrust = 0.0
 
     ## Needed for episode reset to work
     reset_now: bool = False
@@ -231,19 +233,37 @@ class ShellBot(threading.Thread):
         # checkpoint_y_diff = int(round(checkpoint_y_diff * 10.0))
 
         # feeler_view[10 - checkpoint_y_diff][10 + checkpoint_x_diff] = "*"
+
+        time_readout = f'Current Lap Time: {round((datetime.now() - self.start_time).total_seconds(), 3)}s'
+        completion_readout = f"{get_bar_graph(self.completion / 100.0)} - Course Completion: {round(self.completion, 2)}%"
+        steering_readout = f"{get_bar_graph(-self.turn_val, center=True)} - Steering: {round(self.turn_val, 2)}"
+        speed_readout = f"{get_bar_graph(self.last_observations[0])} - Speed: {round(self.speed, 2)}"
+
+        if self.thrust_val > self.cum_avg_thrust:
+            self.cum_avg_thrust = self.thrust_val
+        else:
+            self.cum_avg_thrust = (self.cum_avg_thrust * 3 + self.thrust_val) / 4.0
+        thrust_readout = f"{get_bar_graph(self.cum_avg_thrust)} - Thrust: {round(self.thrust_val, 2)}"
         
+        dash_graphs = [time_readout, completion_readout, thrust_readout, steering_readout, speed_readout]
+
         output = ''
         for idx in range(0, len(feeler_view[0]) + 2):
             output += '_'
         output += '\n'
+
         for feeler_row in feeler_view:
             output += '|'
             for char in feeler_row:
                 output += char
-            output += '|\n'
+            output += '|'
+            if len(dash_graphs) != 0:
+                output += dash_graphs.pop(0)
+            output += '\n'
         for idx in range(0, len(feeler_view[0]) + 2):
             output += '-'
         output += '\n'
+
         print(output)
         self.just_printed_info = True
         
@@ -294,7 +314,7 @@ class ShellBot(threading.Thread):
             num = min(num, 1.0)
             num = max(num, -1.0)
             oberservations[idx] = num
-
+        self.last_observations = oberservations
         return oberservations
 
     def sigmoid_activation(self, x: np.ndarray) -> np.ndarray:
