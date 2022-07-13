@@ -367,6 +367,17 @@ class ShellBot(threading.Thread):
         
         percent_per_checkpt = 100.0 / float(len(self.checkpoints) - 1)
         checkpt_idx = self.get_current_checkpoint() - 1
+
+        try:
+            if self.checkpoints[checkpt_idx + 1][1] >= self.finish_marker:
+                percentage = 100.0 - percent_per_checkpt
+                diff_finish = self.finish_marker - self.checkpoints[checkpt_idx][1]
+                percent_to_finish = max(min(diff_finish - (self.finish_marker - self.y) / diff_finish, 1.0), 0.0)
+                percentage += percent_to_finish * percent_per_checkpt
+                return percentage
+        except:
+            print("Error in get_completion_percent")
+
         base_percentage = percent_per_checkpt * checkpt_idx
         distance_to_checkpt = self.get_checkpoint_info(checkpt_idx)[0]
         distance_btw_checkpt = self.get_distance(self.checkpoints[checkpt_idx][0], self.checkpoints[checkpt_idx][1], self.checkpoints[min(checkpt_idx + 1, len(self.checkpoints) - 1)][0], self.checkpoints[min(checkpt_idx + 1, len(self.checkpoints) - 1)][1])
