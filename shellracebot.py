@@ -19,6 +19,7 @@ import numpy as np
 from neat import nn
 
 from consoleutils import delete_last_lines, get_bar_graph
+from xpracefitness import get_fitness
 
 
 class ShellBot(threading.Thread):
@@ -180,9 +181,7 @@ class ShellBot(threading.Thread):
         except Exception as e:
              print("Error: " + str(e))
         self.calculate_bonus()
-        ##print(f"Cpt: {self.current_checkpoint} Completion: {round(self.get_completion_percent(), 1)} Done: {self.done} Course Comp.: {self.completed_course}")
-        ##print(f"Scores (Bonus, Completion %, Time): {self.get_scores()}")
-        ##print(f'Alive {self.alive} - Done {self.done} - Course Comp. {self.completed_course} - Awaiting Reset {self.awaiting_reset} - Frame {self.frame} - Reset Frame {self.reset_frame}')
+
         if self.test_mode or self.show_info:
             self.print_info()
         else:
@@ -234,11 +233,16 @@ class ShellBot(threading.Thread):
 
         # feeler_view[10 - checkpoint_y_diff][10 + checkpoint_x_diff] = "*"
 
-        time_readout = f' Current Lap Time: {round((datetime.now() - self.start_time).total_seconds(), 3):6}s'
+        current_coursetime = round((datetime.now() - self.start_time).total_seconds(), 3)
+
+        time_readout = f' Current Lap Time: {current_coursetime:6}s'
         completion_readout = f"    {get_bar_graph(self.completion / 100.0)}    - Course Completion: {self.completion / 100.0:.2%}"
         steering_readout = f"  1 {get_bar_graph(-self.turn_val, center=True)} -1 - Steering: {round(self.turn_val * 20.0, 2):+4} degrees"
         speed_readout = f"  0 {get_bar_graph(self.last_observations[0])}  1 - Speed: {round(self.speed, 2):4} units/frame"
         time_to_wall_readout = f"  0 {get_bar_graph(self.last_observations[13])}  1 - Time to Wall: {self.tt_tracking:3} frames"
+
+        fitness = get_fitness(self.completion, self.cum_bonus, current_coursetime, self.average_speed, self.average_completion_per_frame)
+        fitness_readout = f" Fitness: {round(fitness, 2):6} - Bonus: {round(self.cum_bonus, 2):4} - Average Speed: {round(self.average_speed, 2):4} - Average %/Frame: {self.average_completion_per_frame:.2%}"
 
         waypoint_distance, waypoint_bearing = self.get_checkpoint_info(self.current_checkpoint)
         waypoint_readout = f" Waypoint: {self.current_checkpoint:2} Distance: {round(waypoint_distance, 1):4} units Bearing: {round(waypoint_bearing, 2):+4} degrees"
@@ -249,7 +253,7 @@ class ShellBot(threading.Thread):
             self.cum_avg_thrust = (self.cum_avg_thrust * 3 + self.thrust_val) / 4.0
         thrust_readout = f"  0 {get_bar_graph(self.cum_avg_thrust)}  1 - Thrust: {round(self.thrust_val, 2):3} Smoothed: {round(self.cum_avg_thrust, 2):3}"
         
-        dash_graphs = [time_readout, completion_readout, thrust_readout, steering_readout, speed_readout, time_to_wall_readout, waypoint_readout]
+        dash_graphs = [time_readout, completion_readout, thrust_readout, steering_readout, speed_readout, time_to_wall_readout, waypoint_readout, fitness_readout]
 
         output = '┌'
         for idx in range(len(feeler_view[0])):
@@ -440,7 +444,7 @@ class ShellBot(threading.Thread):
             self.done = True
             course_time = datetime.now() - self.start_time
             self.course_time = course_time.total_seconds()
-            print(f"Bot completed course in {round(self.course_time, 3)} seconds")
+            ##print(f"Bot completed course in {round(self.course_time, 3)} seconds")
         if self.alive != 1.0 and not self.awaiting_reset:
             self.done = True
             self.course_time = -1.0
