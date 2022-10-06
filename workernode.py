@@ -13,6 +13,7 @@ from neat import nn
 from shellracebot import ShellBot
 
 eval_length = 120
+fps = 28
 
 try:
     with open('creds.json') as f:
@@ -51,10 +52,11 @@ while True:
             avg_completions_per_frame = np.zeros(num_tracks).tolist()
             runtimes = np.zeros(num_tracks).tolist()
             for track_num, track in enumerate(tracks):
-                print('Starting Server!')
-                server = subprocess.Popen(['./xpilots', '-map', f'{track}.xp', '-noQuit', '-maxClientsPerIP', '500', '-password', 'test', '-worldlives', '999', '-reset', 'no', '-fps', '28'])
+                port_num = randint(49152, 65535)
+                print(f'Starting Server on {port_num}!')
+                server = subprocess.Popen(['./xpilots', '-map', f'{track}.xp', '-noQuit', '-maxClientsPerIP', '500', '-password', 'test', '-worldlives', '999', '-fps', f'{fps}', "-contactPort", f"{port_num}"])
                 print('Starting Bot!')
-                sb = ShellBot("EKKO", track)
+                sb = ShellBot(f"EKKO{track_num}", track, port_num)
                 sb.start()
                 sleep(1)
                 sb.ask_for_perms = True
@@ -77,7 +79,14 @@ while True:
                 avg_completions_per_frame[track_num] = round(sb.average_completion_per_frame, 3)
                 runtimes[track_num] = round((datetime.now() - start_time).total_seconds(), 3)
                 try:
+                    sb.close_bot()
+                    print('Bot Closed!')
+                    sleep(8)
                     server.terminate()
+                    print('Server Terminated!')
+                    server.kill()
+                    print('Server Killed!')
+                    sleep(2)
                 except Exception:
                     pass
                 print(f'Generation {generation} number {individual_num} Species: {species} finished evaluation on {track}! Bonus: {round(bonuses[track_num], 3)} Completion: {round(completions[track_num], 3)} Time: {times[track_num]} Runtime: {runtimes[track_num]}s Avg Speed: {avg_speeds[track_num]} Avg Completion: {avg_completions_per_frame[track_num]}')
