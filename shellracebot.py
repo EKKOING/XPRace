@@ -107,11 +107,12 @@ class ShellBot(threading.Thread):
     ## Track Info
     checkpoints: List[List[int]] = [[0, 0]]
 
-    def __init__(self, username:str="InitNoName", mapname: str = 'testtrack') -> None:
+    def __init__(self, username:str="InitNoName", mapname: str = 'testtrack', port = None) -> None:
         super(ShellBot, self).__init__()
         self.username = username
         self.max_turntime = math.ceil(180 / self.turnspeed)
         self.gamemap = mapname
+        self.port = port
         with open(f'{self.gamemap}.json', 'r') as f:
             map_data = json.load(f)
             self.checkpoints = map_data["checkpoints"]
@@ -122,7 +123,10 @@ class ShellBot(threading.Thread):
     def run(self,) -> None:
         if not self.started:
             self.started = True
-            ai.start(self.run_loop, ["-name", self.username, "-join", "localhost"])
+            run_args = ["-name", self.username, "-join", "localhost"]
+            if self.port:
+                run_args.extend(["-port", f"{self.port}"])
+            ai.start(self.run_loop, run_args)
         else:
             print("Bot already started")
     
@@ -131,6 +135,7 @@ class ShellBot(threading.Thread):
 
     def close_bot(self,) -> None:
         self.close_now = True
+        ai.quitAI()
 
     def reset_values(self,) -> None:
         self.awaiting_reset = False
@@ -168,6 +173,8 @@ class ShellBot(threading.Thread):
                 self.awaiting_reset = True
                 self.reset_frame = self.frame
                 return
+            if self.close_now:
+                ai.quitAI()
 
             ai.setTurnSpeedDeg(self.turnspeed)
             
