@@ -25,7 +25,7 @@ wandb.config = {
     "completion_mod": 1.3,
     "trial": 9,
     "completion_per_frame_mod": 1.2,
-    "tracks": ["testtrack", "testtrack1", "testtrack2"],
+    "tracks": ["testtrack", "shorttrack"],
 }
 config_name = 'config3'
 
@@ -58,7 +58,8 @@ class EvolveManager:
     bonus_list = np.empty((0,2))
     completion_list = np.empty((0,2))
     time_list = np.empty((0,2))
-    runtime_list = np.empty((0,2))
+    runtime_list = np.array([[10.0, 10.0],
+                             [10.0, 10.0],])
     avg_speed_list = np.empty((0,2))
     avg_completion_per_frame_list = np.empty((0,2))
 
@@ -151,7 +152,7 @@ class EvolveManager:
                 first_sleep = False
             print(f'=== {datetime.now().strftime("%H:%M:%S")} ===\n{uncompleted_training} genomes still need to be evaluated\n{started_training} currently being evaluated\n{finished_training} have been evaluated')
             progress_bar(finished_training, started_training, len(genomes))
-            secs_tg = (ceil(uncompleted_training * np.mean(self.runtime_list) / (self.num_workers + 1)))
+            secs_tg = (ceil(uncompleted_training * np.mean(np.sum(self.runtime_list, axis=1)) / (self.num_workers + 1)))
             if secs_tg != last_secs_tg:
                 secs_since_tg_update = 0
             last_secs_tg = secs_tg
