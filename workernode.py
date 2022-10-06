@@ -1,3 +1,4 @@
+import faulthandler
 import json
 import pickle
 import subprocess
@@ -14,6 +15,8 @@ from shellracebot import ShellBot
 
 eval_length = 120
 fps = 28
+
+faulthandler.enable(all_threads=True)
 
 try:
     with open('creds.json') as f:
