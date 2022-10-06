@@ -1,20 +1,18 @@
 import json
-import subprocess
 import pickle
+import subprocess
 from datetime import datetime, timedelta
 from random import randint
 from time import sleep
 
+import numpy as np
 import pymongo
 from bson.binary import Binary
-from GANet import GANet
 from neat import nn
 
 from shellracebot import ShellBot
 
 eval_length = 120
-trackname = "testtrack"
-
 
 try:
     with open('creds.json') as f:
@@ -23,23 +21,11 @@ except FileNotFoundError:
     print('creds.json not found!')
     exit()
 
-print('Starting Server!')
-subprocess.Popen(['./xpilots', '-map', f'{trackname}.xp', '-noQuit', '-maxClientsPerIP', '500', '-password', 'test', '-worldlives', '999', '-reset', 'no', '-fps', '28'])
-
 db_string = creds['mongodb']
 client = pymongo.MongoClient(db_string)
 db = client.NEAT
 collection = db.genomes
 
-print('Starting Bot!')
-sb = ShellBot("EKKO", trackname)
-sb.start()
-# Give Us Enough Time to Type Password In
-sleep(1)
-sb.ask_for_perms = True
-for idx in range(0, 7):
-    print(f'Grant Operator Perms in Next {7 - idx} Seconds!!!')
-    sleep(1)
 print("=== Beginning Work Cycle ===")
 waiting = False
 while True:
@@ -54,27 +40,50 @@ while True:
             generation = genome['generation']
             individual_num = genome['individual_num']
             species = genome['species']
-            sb.nn = net
-            sb.reset()
-            while sb.awaiting_reset or sb.done:
-                pass
-            print(f'Generation {generation} number {individual_num} started evaluation!')
-            start_time = datetime.now()
-            while not sb.done and (datetime.now() - start_time).total_seconds() < eval_length:
-                sleep(0.01)
-                ## Early Termination
-                if (datetime.now() - start_time).total_seconds() > 10.0 and sb.y < 100:
-                    break
-            bonus, completion, time = sb.get_scores()
-            last_x = sb.x
-            last_y = sb.y
-            avg_speed = round(sb.average_speed, 3)
-            avg_completion_per_frame = round(sb.average_completion_per_frame, 3)
-            runtime = round((datetime.now() - start_time).total_seconds(), 3)
+            tracks = genome['tracks']
+            num_tracks = len(tracks)
+            bonuses = np.zeros(num_tracks).tolist()
+            completions = np.zeros(num_tracks).tolist()
+            times = np.full(num_tracks, -1.0).tolist()
+            last_xs = np.zeros(num_tracks).tolist()
+            last_ys = np.zeros(num_tracks).tolist()
+            avg_speeds = np.zeros(num_tracks).tolist()
+            avg_completions_per_frame = np.zeros(num_tracks).tolist()
+            runtimes = np.zeros(num_tracks).tolist()
+            for track_num, track in enumerate(tracks):
+                print('Starting Server!')
+                server = subprocess.Popen(['./xpilots', '-map', f'{track}.xp', '-noQuit', '-maxClientsPerIP', '500', '-password', 'test', '-worldlives', '999', '-reset', 'no', '-fps', '28'])
+                print('Starting Bot!')
+                sb = ShellBot("EKKO", track)
+                sb.start()
+                sleep(1)
+                sb.ask_for_perms = True
+                sleep(1)
+                sb.nn = net
+                sb.reset()
+                while sb.awaiting_reset or sb.done:
+                    pass
+                print(f'Generation {generation} number {individual_num} started evaluation on {track}!')
+                start_time = datetime.now()
+                while not sb.done and (datetime.now() - start_time).total_seconds() < eval_length:
+                    sleep(0.01)
+                    ## Early Termination
+                    if (datetime.now() - start_time).total_seconds() > 10.0 and sb.y < 100:
+                        break
+                bonuses[track_num], completions[track_num], times[track_num] = sb.get_scores()
+                last_xs[track_num] = sb.x
+                last_ys[track_num] = sb.y
+                avg_speeds[track_num] = round(sb.average_speed, 3)
+                avg_completions_per_frame[track_num] = round(sb.average_completion_per_frame, 3)
+                runtimes[track_num] = round((datetime.now() - start_time).total_seconds(), 3)
+                try:
+                    server.terminate()
+                except Exception:
+                    pass
+                print(f'Generation {generation} number {individual_num} Species: {species} finished evaluation on {track}! Bonus: {round(bonuses[track_num], 3)} Completion: {round(completions[track_num], 3)} Time: {times[track_num]} Runtime: {runtimes[track_num]}s Avg Speed: {avg_speeds[track_num]} Avg Completion: {avg_completions_per_frame[track_num]}')
+                print("==================")
             collection.update_one({'_id': genome['_id']}, {
-                                '$set': {'bonus': bonus, 'completion': completion, 'time': time, 'finished_eval': True, 'runtime': runtime, 'x': last_x, 'y': last_y, 'avg_speed': avg_speed, 'avg_completion_per_frame': avg_completion_per_frame}})
-            print(f'Generation {generation} number {individual_num} Species: {species} finished evaluation! Bonus: {round(bonus, 3)} Completion: {round(completion, 3)} Time: {time} Runtime: {runtime}s Avg Speed: {avg_speed} Avg Completion: {avg_completion_per_frame}')
-            print("==================")
+                '$set': {'bonus': bonuses, 'completion': completions, 'time': times, 'finished_eval': True, 'runtime': runtimes, 'x': last_xs, 'y': last_ys, 'avg_speed': avg_speeds, 'avg_completion_per_frame': avg_completions_per_frame}})
             waiting = False
         else:
             if not waiting:

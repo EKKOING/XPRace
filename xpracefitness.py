@@ -21,4 +21,14 @@ def get_fitness(completion: float, bonus: float, time: float, avg_speed: float, 
     if time > 0:
         time_bonus = max((121.0 - time), 1.0) ** config['time_mod']
     fitness = time_bonus + completion_bonus + avg_completion_per_frame_bonus + bonus
+    try:
+        fitness = fitness.real
+    except AttributeError:
+        fitness = float(fitness)
     return fitness
+
+def get_many_fitnesses(completions: list, bonuses: list, times: list, avg_speeds: list, avg_completions_per_frame: list, config: dict = default_config) -> list:
+    fitnesses = []
+    for i in range(len(completions)):
+        fitnesses.append(get_fitness(completions[i], bonuses[i], times[i], avg_speeds[i], avg_completions_per_frame[i], config))
+    return fitnesses

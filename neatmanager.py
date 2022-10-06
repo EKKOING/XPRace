@@ -10,24 +10,26 @@ from typing import Iterable
 import neat
 import numpy as np
 import pymongo
-import wandb
 from bson.binary import Binary
 
-wandb.init(project="XPRace", entity="xprace", resume=False)
+import wandb
 from consoleutils import delete_last_lines, progress_bar
-from xpracefitness import get_fitness
+from xpracefitness import get_fitness, get_many_fitnesses
+
+wandb.init(project="XPRace", entity="xprace", resume=False)
 wandb.config = {
     "pop": 100,
     "bonus_mod": 1.0,
     "time_mod": 1.5,
     "episode_length": 120,
     "completion_mod": 1.3,
-    "trial": 7.5,
+    "trial": 9,
     "completion_per_frame_mod": 1.2,
-    "track": "testtrack",
+    "tracks": ["testtrack", "testtrack1", "testtrack2"],
 }
 config_name = 'config3'
 
+input(f'Confirm Trial: {wandb.config["trial"]} and {config_name}')
 
 try:
     with open('creds.json') as f:
@@ -51,16 +53,14 @@ class EvolveManager:
     gen_start: datetime
     latest = None
 
-    fit_list = []
-    completion_list = []
-    bonus_list = []
-    time_list = []
-    avg_completion_list = []
-    current_species_list = []
-    runtime_list = [10.0, 10.0]
-    avg_speed_list = []
-    best_time = 120.0
-    prev_best_time = 120.0
+    summed_fit_list = []
+    fit_list = np.empty((0,2))
+    bonus_list = np.empty((0,2))
+    completion_list = np.empty((0,2))
+    time_list = np.empty((0,2))
+    runtime_list = np.empty((0,2))
+    avg_speed_list = np.empty((0,2))
+    avg_completion_per_frame_list = np.empty((0,2))
 
     def __init__(self, config_file: str, generation: int = 0):
         self.config_file = config_file
@@ -76,6 +76,7 @@ class EvolveManager:
         self.p.add_reporter(neat.StdOutReporter(False))
         self.checkpointer = neat.Checkpointer(1, filename_prefix='NEAT-')
         self.p.add_reporter(self.checkpointer)
+        self.num_tracks = len(wandb.config['tracks'])
 
     def eval_genomes(self, genomes, config):
         self.num_workers = 0
@@ -96,17 +97,18 @@ class EvolveManager:
                 'genome': net,
                 'individual_num': individual_num,
                 'generation': self.generation,
-                'bonus': 0,
-                'completion': 0,
-                'time': -1.0,
+                'tracks': wandb.config['tracks'],
+                'bonus': np.zeros(self.num_tracks).tolist(),
+                'completion': np.zeros(self.num_tracks).tolist(),
+                'time': (np.ones(self.num_tracks) * -1).tolist(),
                 'started_eval': False,
                 'started_at': None,
-                'finished_eval': False,
+                'finished_eval': np.full(self.num_tracks, False, dtype=bool).tolist(),
                 'algo': 'NEAT',
                 'species': species_id,
                 'trial': wandb.config['trial'],
-                'avg_speed': 0.0,
-                'avg_completion_per_frame': 0.0
+                'avg_speed': np.zeros(self.num_tracks).tolist(),
+                'avg_completion_per_frame': np.zeros(self.num_tracks).tolist(),
             }
             if collection.find_one({'generation': self.generation, 'individual_num': individual_num, 'algo': 'NEAT', 'trial': wandb.config['trial']}):
                 collection.update_one(
@@ -116,9 +118,7 @@ class EvolveManager:
                         'algo': 'NEAT',
                         'trial': wandb.config['trial'],
                     }, {
-                        '$set': {
-                            'started_eval': False, 'finished_eval': False, 'bonus': 0, 'completion': 0, 'time': -1.0, 'genome': net, 'started_at': None, 'key': key, 'species': species_id, 'avg_speed': 0.0, 'avg_completion_per_frame': 0.0
-                        }
+                        '$set' : db_entry
                     }
                 )
             else:
@@ -174,50 +174,38 @@ class EvolveManager:
                     text="No workers currently running.",
                 )
                 no_alert = False
-        fit_list = []
-        bonus_list = []
-        completion_list = []
-        time_list = []
-        runtime_list = []
-        avg_speed_list = []
-        avg_completion_per_frame_list = []
+        summed_fit_list = []
+        fit_list = np.empty((0,self.num_tracks))
+        bonus_list = np.empty((0,self.num_tracks))
+        completion_list = np.empty((0,self.num_tracks))
+        time_list = np.empty((0,self.num_tracks))
+        runtime_list = np.empty((0,self.num_tracks))
+        avg_speed_list = np.empty((0,self.num_tracks))
+        avg_completion_per_frame_list = np.empty((0,self.num_tracks))
         for genome_id, genome in genomes:
             key = genome.key
             results = collection.find_one(
                 {'key': key, 'generation': self.generation, 'trial': wandb.config['trial']})
-            fitness = 0.0
             if results == None:
                 print(f'No results found for {key}')
                 continue
-            try:
-                runtime = results['runtime']
-            except KeyError:
-                runtime = 120.0
-            completion = max(results['completion'], 0.1)
+            runtime = results['runtime']
+            completion = results['completion']
             bonus = results['bonus']
             avg_speed = results['avg_speed']
             avg_completion_per_frame = results['avg_completion_per_frame']
             time = results['time']
-            avg_speed_list.append(avg_speed)
-            avg_completion_per_frame_list.append(avg_completion_per_frame)
-            completion_list.append(completion)
-            bonus_list.append(bonus)
+            avg_speed_list = np.append(avg_speed_list, avg_speed)
+            avg_completion_per_frame_list = np.append(avg_completion_per_frame_list, avg_completion_per_frame)
+            completion_list = np.append(completion_list, completion)
+            bonus_list = np.append(bonus_list, bonus)
 
-            fitness = get_fitness(completion, bonus, time, avg_speed, avg_completion_per_frame, wandb.config)
-
-            try:
-                genome.fitness = fitness.real
-            except AttributeError:
-                genome.fitness = float(fitness)
-            fit_list.append(fitness)
-            runtime_list.append(runtime)
-            if time > 0:
-                time_list.append(time)
-        
-        self.prev_best_time = self.best_time
-        if len(time_list) > 0 and np.max(time_list) < self.best_time:
-            self.best_time = np.max(time_list)
-            print(f'New best time: {self.best_time}')
+            fitnesses = get_many_fitnesses(completion, bonus, time, avg_speed, avg_completion_per_frame, wandb.config)
+            genome.fitness = np.sum(fitnesses)
+            fit_list = np.append(fit_list, fitnesses)
+            summed_fit_list.append(genome.fitness)
+            runtime_list = np.append(runtime_list, runtime)
+            time_list = np.append(time_list, time)
 
         self.completion_list = completion_list
         self.fit_list = fit_list
@@ -237,7 +225,7 @@ class EvolveManager:
             genome_id = genome['_id']
             key = genome['key']
             started_at = genome['started_at']
-            if (datetime.now() - started_at) > timedelta(minutes=3):
+            if (datetime.now() - started_at) > timedelta(minutes=6):
                 try:
                     if genome['failed_eval']:
                         print(f'Genome {key} failed to evaluate')
@@ -262,52 +250,58 @@ while True:
         manager.run(num_gens=1)
         log = {
             "Generation": manager.generation,
-            "Avg Fitness": np.mean(manager.fit_list),
-            "Median Fitness": np.median(manager.fit_list),
-            "Max Fitness": np.max(manager.fit_list),
-            "Min Fitness": np.min(manager.fit_list),
-            "SD Fitness": np.std(manager.fit_list),
-            "Avg Bonus": np.mean(manager.bonus_list),
-            "Median Bonus": np.median(manager.bonus_list),
-            "Max Bonus": np.max(manager.bonus_list),
-            "Min Bonus": np.min(manager.bonus_list),
-            "SD Bonus": np.std(manager.bonus_list),
-            "Avg Completion": np.mean(manager.completion_list),
-            "Median Completion": np.median(manager.completion_list),
-            "Max Completion": np.max(manager.completion_list),
-            "Min Completion": np.min(manager.completion_list),
-            "SD Completion": np.std(manager.completion_list),
-            "Avg Runtime": np.mean(manager.runtime_list),
-            "Median Runtime": np.median(manager.runtime_list),
-            "Max Runtime": np.max(manager.runtime_list),
-            "Min Runtime": np.min(manager.runtime_list),
-            "SD Runtime": np.std(manager.runtime_list),
-            "Avg Speed": np.mean(manager.avg_speed_list),
-            "Median Speed": np.median(manager.avg_speed_list),
-            "Max Speed": np.max(manager.avg_speed_list),
-            "Min Speed": np.min(manager.avg_speed_list),
-            "SD Speed": np.std(manager.avg_speed_list),
-            "Avg Completion Per Frame": np.mean(manager.avg_completion_list),
-            "Median Completion Per Frame": np.median(manager.avg_completion_list),
-            "Max Completion Per Frame": np.max(manager.avg_completion_list),
-            "Min Completion Per Frame": np.min(manager.avg_completion_list),
-            "SD Completion Per Frame": np.std(manager.avg_completion_list),
             "Time Elapsed": (datetime.now() - manager.gen_start).total_seconds(),
             "Time": datetime.now(),
             "Num Species": len(manager.current_species_list),
             "Population Size": len(manager.fit_list),
             "Num Workers": manager.num_workers,
-            "Num Completions": len(manager.time_list),
+            "Max Fitness": np.max(manager.summed_fit_list),
+            "Min Fitness": np.min(manager.summed_fit_list),
+            "Avg Fitness": np.mean(manager.summed_fit_list),
+            "SD Fitness": np.std(manager.summed_fit_list),
         }
-        if len(manager.time_list) != 0:
-            log["Avg Time"] = np.mean(manager.time_list)
-            log["Median Time"] = np.median(manager.time_list)
-            log["Max Time"] = np.max(manager.time_list)
-            log["Min Time"] = np.min(manager.time_list)
-            log["SD Time"] = np.std(manager.time_list)
-        
-        if manager.best_time != manager.prev_best_time:
-            log["Best Time"] = manager.best_time
+        for idx, track in enumerate(wandb.config['tracks']):
+            track_log = {
+                f"{track} Avg Fitness": np.mean(manager.fit_list[:, idx]),
+                f"{track} Median Fitness": np.median(manager.fit_list[:, idx]),
+                f"{track} Max Fitness": np.max(manager.fit_list[:, idx]),
+                f"{track} Min Fitness": np.min(manager.fit_list[:, idx]),
+                f"{track} SD Fitness": np.std(manager.fit_list[:, idx]),
+                f"{track} Avg Bonus": np.mean(manager.bonus_list[:, idx]),
+                f"{track} Median Bonus": np.median(manager.bonus_list[:, idx]),
+                f"{track} Max Bonus": np.max(manager.bonus_list[:, idx]),
+                f"{track} Min Bonus": np.min(manager.bonus_list[:, idx]),
+                f"{track} SD Bonus": np.std(manager.bonus_list[:, idx]),
+                f"{track} Avg Completion": np.mean(manager.completion_list[:, idx]),
+                f"{track} Median Completion": np.median(manager.completion_list[:, idx]),
+                f"{track} Max Completion": np.max(manager.completion_list[:, idx]),
+                f"{track} Min Completion": np.min(manager.completion_list[:, idx]),
+                f"{track} SD Completion": np.std(manager.completion_list[:, idx]),
+                f"{track} Avg Runtime": np.mean(manager.runtime_list[:, idx]),
+                f"{track} Median Runtime": np.median(manager.runtime_list[:, idx]),
+                f"{track} Max Runtime": np.max(manager.runtime_list[:, idx]),
+                f"{track} Min Runtime": np.min(manager.runtime_list[:, idx]),
+                f"{track} SD Runtime": np.std(manager.runtime_list[:, idx]),
+                f"{track} Avg Speed": np.mean(manager.avg_speed_list[:, idx]),
+                f"{track} Median Speed": np.median(manager.avg_speed_list[:, idx]),
+                f"{track} Max Speed": np.max(manager.avg_speed_list[:, idx]),
+                f"{track} Min Speed": np.min(manager.avg_speed_list[:, idx]),
+                f"{track} SD Speed": np.std(manager.avg_speed_list[:, idx]),
+                f"{track} Avg Completion Per Frame": np.mean(manager.avg_completion_list[:, idx]),
+                f"{track} Median Completion Per Frame": np.median(manager.avg_completion_list[:, idx]),
+                f"{track} Max Completion Per Frame": np.max(manager.avg_completion_list[:, idx]),
+                f"{track} Min Completion Per Frame": np.min(manager.avg_completion_list[:, idx]),
+                f"{track} SD Completion Per Frame": np.std(manager.avg_completion_list[:, idx]),
+                f"{track} Completions": len(manager.completion_list[manager.completion_list[:, idx] == 100.0]),
+            }
+            if np.max(manager.time_list[:, idx]) > 0:
+                real_times = manager.time_list[:, idx][manager.time_list[:, idx] > 0]
+                track_log[f"{track} Avg Time"] = np.mean(real_times)
+                track_log[f"{track} Median Time"] = np.median(real_times)
+                track_log[f"{track} Max Time"] = np.max(real_times)
+                track_log[f"{track} Min Time"] = np.min(real_times)
+                track_log[f"{track} SD Time"] = np.std(real_times)
+            log.update(track_log)
         wandb.log(log)
         manager.generation += 1
     except KeyboardInterrupt:
