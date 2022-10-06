@@ -403,6 +403,7 @@ class ShellBot(threading.Thread):
                 diff_finish = self.finish_marker - self.checkpoints[checkpt_idx][1]
                 percent_to_finish = max(min(diff_finish - (self.finish_marker - self.y) / diff_finish, 1.0), 0.0)
                 percentage += percent_to_finish * percent_per_checkpt
+                percentage = max(min(round(percentage, 3), 99.999), 0.1)
                 return percentage
         except:
             print("Error in get_completion_percent")
@@ -411,7 +412,7 @@ class ShellBot(threading.Thread):
         distance_to_checkpt = self.get_checkpoint_info(checkpt_idx)[0]
         distance_btw_checkpt = self.get_distance(self.checkpoints[checkpt_idx][0], self.checkpoints[checkpt_idx][1], self.checkpoints[min(checkpt_idx + 1, len(self.checkpoints) - 1)][0], self.checkpoints[min(checkpt_idx + 1, len(self.checkpoints) - 1)][1])
         percent_to_next = (distance_to_checkpt / distance_btw_checkpt) * percent_per_checkpt
-        return max(min(base_percentage + percent_to_next, 100.0), 0.1)
+        return max(min(round(base_percentage + percent_to_next, 3), 99.999), 0.1)
 
     
     def perform_action(self,) -> None:
