@@ -15,5 +15,6 @@
         [2712, 1731],
         [2712, 1800]
     ],
-    "finish_marker": 1670
+    "finish_marker": 1670,
+    "target_time": 30
 }

@@ -26,5 +26,6 @@
         [1243, 3411],
         [1243, 3500]
     ],
-    "finish_marker": 3400
+    "finish_marker": 3400,
+    "target_time": 65.0
 }
