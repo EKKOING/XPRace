@@ -99,6 +99,11 @@ while True:
                     bot_return_code = bot.wait()
                     sleep(1)
                     print(f"Bot finished with return code {bot_return_code}!")
+                    if bot_return_code != 0:
+                        server.kill()
+                        server.wait()
+                        print("Server killed!")
+                        raise Exception("Bot Error!")
                     server.kill()
                     sleep(1)
                     print("Server killed!")

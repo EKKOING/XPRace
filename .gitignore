@@ -3,6 +3,8 @@ creds.json
 
 # Logging
 /wandb
+/NEAT-*
+/assets/graphs/*/prog_graphs
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
