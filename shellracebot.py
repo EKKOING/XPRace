@@ -117,6 +117,7 @@ class ShellBot(threading.Thread):
             map_data = json.load(f)
             self.checkpoints = map_data["checkpoints"]
             self.finish_marker = map_data["finish_marker"]
+            self.target_time = map_data["target_time"]
         
     
     ## For Interfacing with the Environment
@@ -248,7 +249,7 @@ class ShellBot(threading.Thread):
         speed_readout = f"  0 {get_bar_graph(self.last_observations[0])}  1 - Speed: {round(self.speed, 2):4} units/frame"
         time_to_wall_readout = f"  0 {get_bar_graph(self.last_observations[13])}  1 - Time to Wall: {self.tt_tracking:3} frames"
 
-        fitness = get_fitness(self.completion, self.cum_bonus, current_coursetime, self.average_speed, self.average_completion_per_frame)
+        fitness = get_fitness(self.completion, self.cum_bonus, current_coursetime, self.average_speed, self.average_completion_per_frame, self.target_time)
         fitness_readout = f" Fitness: {round(fitness, 2):6} - Bonus: {round(self.cum_bonus, 2):4} - Average Speed: {round(self.average_speed, 2):4} - Average %/Frame: {self.average_completion_per_frame:.2%}"
 
         waypoint_distance, waypoint_bearing = self.get_checkpoint_info(self.current_checkpoint)
@@ -387,7 +388,7 @@ class ShellBot(threading.Thread):
         step_bonus = 0.0
         speed_bonus = 0.0
         if self.speed > 0.5:
-            speed_bonus = (self.speed ** 1.1) / 150.0
+            speed_bonus = (self.speed ** 1.1) / 1000.0
 
         if self.alive == 1.0 and not self.done:
             step_bonus += speed_bonus
