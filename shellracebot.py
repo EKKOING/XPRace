@@ -107,12 +107,13 @@ class ShellBot(threading.Thread):
     ## Track Info
     checkpoints: List[List[int]] = [[0, 0]]
 
-    def __init__(self, username:str="InitNoName", mapname: str = 'testtrack', port = None) -> None:
+    def __init__(self, username:str="InitNoName", mapname: str = 'testtrack', port = None, headless: bool = False) -> None:
         super(ShellBot, self).__init__()
         self.username = username
         self.max_turntime = math.ceil(180 / self.turnspeed)
         self.gamemap = mapname
         self.port = port
+        self.headless = headless
         with open(f'{self.gamemap}.json', 'r') as f:
             map_data = json.load(f)
             self.checkpoints = map_data["checkpoints"]
@@ -123,6 +124,8 @@ class ShellBot(threading.Thread):
     ## For Interfacing with the Environment
     def run(self,) -> None:
         if not self.started:
+            if self.headless:
+                ai.headlessMode()
             self.started = True
             run_args = ["-name", self.username, "-join", "localhost"]
             if self.port:

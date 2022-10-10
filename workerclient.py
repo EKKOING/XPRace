@@ -69,7 +69,7 @@ try:
     avg_completions_per_frame = genome['avg_completion_per_frame']
     runtimes = genome['runtime']
 
-    sb = ShellBot(f"EKKO{track_num}", track, args.port)
+    sb = ShellBot(f"EKKO{track_num}", track, args.port, headless=True)
     sb.start()
     sleep(1)
     sb.ask_for_perms = True
