@@ -5,8 +5,8 @@ from datetime import datetime
 from time import sleep
 
 import pymongo
+from bson.objectid import ObjectId
 from bson.binary import Binary
-from bson import objectid
 from neat import nn
 
 from shellracebot import ShellBot
@@ -31,7 +31,7 @@ try:
         print("No genome id specified!")
         exit(2)
     print(f'port {args.port} for track {track_num} with genome id {args.dbid}')
-    db_objid = objectid.ObjectId(args.dbid)
+    db_objid = ObjectId(args.dbid)
     if not args.eval_length:
         print("No evaluation length specified!")
         exit(2)
@@ -80,11 +80,13 @@ try:
         pass
     print(f'Generation {generation} number {individual_num} started evaluation on {track}!')
     start_time = datetime.now()
+    sb.show_info = True
     while not sb.done and (datetime.now() - start_time).total_seconds() < eval_length:
         sleep(0.01)
         ## Early Termination
         if (datetime.now() - start_time).total_seconds() > 10.0 and sb.y < 100:
             break
+    sb.show_info = False
     bonuses[track_num], completions[track_num], times[track_num] = sb.get_scores()
     last_xs[track_num] = sb.x
     last_ys[track_num] = sb.y
