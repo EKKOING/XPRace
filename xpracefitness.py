@@ -1,34 +1,31 @@
+import numpy as np
 default_config = {
     "bonus_mod": 1.0,
-    "time_mod": 1.5,
+    "time_mod": 1.2,
     "episode_length": 120,
-    "completion_mod": 1.3,
+    "completion_mod": 1.1,
     "completion_per_frame_mod": 1.2,
 }
 
 
-def get_fitness(completion: float, bonus: float, time: float, avg_speed: float, avg_completion_per_frame: float, config: dict = default_config) -> float:
-    avg_speed_bonus = (avg_speed / 1.3) * config['bonus_mod']
-    avg_completion_per_frame_bonus = max(avg_completion_per_frame, 0.0001)
-    avg_completion_per_frame_bonus = 15.0 - (2.0 / avg_completion_per_frame_bonus)
-    avg_completion_per_frame_bonus = max(avg_completion_per_frame_bonus, 0)
-    bonus = bonus * config['bonus_mod']
-    bonus = max(bonus, 0.0001)
-    bonus = 30.0 - (20.0 / bonus)
-    bonus = max(bonus, 0)
+def get_fitness(completion: float, bonus: float, time: float, avg_speed: float, avg_completion_per_frame: float, target_time: float, max_target_time: float = 0.0, config: dict = default_config) -> float:
     completion_bonus =  completion ** config['completion_mod']
     time_bonus = 0.0
+    time_adj = 1.0
+    if max_target_time != 0.0:
+        time_adj = max_target_time / target_time
     if time > 0:
-        time_bonus = max((121.0 - time), 1.0) ** config['time_mod']
-    fitness = time_bonus + completion_bonus + avg_completion_per_frame_bonus + bonus
+        time_bonus = ((min(time, target_time) * time_adj) - (target_time * time_adj)) ** config['time_mod'] + 100 ** config['completion_mod']
+    bonus = min((bonus * time_adj), 50.0)
+    fitness = time_bonus + completion_bonus 
     try:
         fitness = fitness.real
     except AttributeError:
         fitness = float(fitness)
     return fitness
 
-def get_many_fitnesses(completions: list, bonuses: list, times: list, avg_speeds: list, avg_completions_per_frame: list, config: dict = default_config) -> list:
+def get_many_fitnesses(completions: list, bonuses: list, times: list, avg_speeds: list, avg_completions_per_frame: list, target_times: list, config: dict = default_config) -> list:
     fitnesses = []
     for i in range(len(completions)):
-        fitnesses.append(get_fitness(completions[i], bonuses[i], times[i], avg_speeds[i], avg_completions_per_frame[i], config))
+        fitnesses.append(get_fitness(completions[i], bonuses[i], times[i], avg_speeds[i], avg_completions_per_frame[i], target_times[i], np.max(target_times), config))
     return fitnesses
