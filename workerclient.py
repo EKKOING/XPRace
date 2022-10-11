@@ -99,7 +99,7 @@ try:
     avg_completions_per_frame[track_num] = round(sb.average_completion_per_frame, 3)
     runtimes[track_num] = round((datetime.now() - start_time).total_seconds(), 3)
     collection.update_one({'_id': genome['_id']}, {
-    '$set': {'bonus': bonuses, 'completion': completions, 'time': times, 'runtime': runtimes, 'x': last_xs, 'y': last_ys, 'avg_speed': avg_speeds, 'avg_completion_per_frame': avg_completions_per_frame}})
+    '$set': {'bonus': bonuses, 'completion': completions, 'time': times, 'runtime': runtimes, 'x': last_xs, 'y': last_ys, 'avg_speed': avg_speeds, 'avg_completion_per_frame': avg_completions_per_frame, 'frame_rate': frame_rate}})
     try:
         sb.close_bot()
         print('Bot Closed!')
