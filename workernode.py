@@ -63,6 +63,7 @@ while True:
                             "y": last_ys,
                             "avg_speed": avg_speeds,
                             "avg_completion_per_frame": avg_completions_per_frame,
+                            "frame_rate": 0.0
                         }
                     },
                 )

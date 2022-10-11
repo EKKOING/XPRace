@@ -68,6 +68,7 @@ try:
     avg_speeds = genome['avg_speed']
     avg_completions_per_frame = genome['avg_completion_per_frame']
     runtimes = genome['runtime']
+    frame_rates = genome['frame_rate']
 
     sb = ShellBot(f"EKKO{track_num}", track, args.port, headless=True)
     sb.start()
@@ -90,6 +91,10 @@ try:
     bonuses[track_num], completions[track_num], times[track_num] = sb.get_scores()
     last_xs[track_num] = sb.x
     last_ys[track_num] = sb.y
+    if frame_rate == 0:
+        frame_rate = sb.frame_rate
+    else:
+        frame_rate = (frame_rate + sb.frame_rate) / 2.0
     avg_speeds[track_num] = round(sb.average_speed, 3)
     avg_completions_per_frame[track_num] = round(sb.average_completion_per_frame, 3)
     runtimes[track_num] = round((datetime.now() - start_time).total_seconds(), 3)

@@ -78,7 +78,9 @@ class ShellBot(threading.Thread):
     started: bool = False
     died_but_no_reset: bool = False
     reset_frame: int = 0
+    reset_time: datetime = datetime.now()
     ask_for_perms = False
+    frame_rate: float = 28.0
 
     ## State of the bot
     alive: float = 0.0
@@ -156,6 +158,8 @@ class ShellBot(threading.Thread):
         self.last_completion = 0.0
         self.max_completion = 0.0
         self.max_completion_frame = 0
+        self.reset_time = datetime.now()
+        self.frame_rate = 28.0
 
     def run_loop(self,) -> None:
         ##print(f"Bot starting frame {self.frame}")
@@ -198,6 +202,7 @@ class ShellBot(threading.Thread):
         else:
             self.just_printed_info = False
         self.last_alive = self.alive
+        self.frame_rate = self.frame / (datetime.now() - self.reset_time).total_seconds()
 
     def print_info(self,) -> None:
         if self.just_printed_info:
