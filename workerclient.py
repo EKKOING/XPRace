@@ -68,7 +68,7 @@ try:
     avg_speeds = genome['avg_speed']
     avg_completions_per_frame = genome['avg_completion_per_frame']
     runtimes = genome['runtime']
-    frame_rates = genome['frame_rate']
+    frame_rate = genome['frame_rate']
 
     sb = ShellBot(f"EKKO{track_num}", track, args.port, headless=True)
     sb.start()
