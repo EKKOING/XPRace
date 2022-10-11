@@ -1,9 +1,11 @@
 import faulthandler
 import json
+import socket
 import subprocess
 from datetime import datetime, timedelta
 from random import randint
 from time import sleep
+import argparse
 
 import numpy as np
 import pymongo
@@ -12,6 +14,10 @@ from shellracebot import ShellBot
 
 eval_length = 120
 fps = 28
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-instance", help="instance_no", required=True)
+args = parser.parse_args()
 
 faulthandler.enable(all_threads=True)
 
@@ -26,6 +32,16 @@ db_string = creds["mongodb"]
 client = pymongo.MongoClient(db_string)
 db = client.NEAT
 collection = db.genomes
+
+hostname = ""
+import socket
+
+if socket.gethostname().find('.')>=0:
+    hostname = socket.gethostname()
+else:
+    hostname = socket.gethostbyaddr(socket.gethostname())[0]
+
+hostname += f"_{args.instance}"
 
 print("=== Beginning Work Cycle ===")
 waiting = False
@@ -63,7 +79,8 @@ while True:
                             "y": last_ys,
                             "avg_speed": avg_speeds,
                             "avg_completion_per_frame": avg_completions_per_frame,
-                            "frame_rate": 0.0
+                            "frame_rate": 0.0,
+                            "hostname": hostname
                         }
                     },
                 )
