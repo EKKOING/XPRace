@@ -20,9 +20,9 @@ wandb.init(project="XPRace", entity="xprace", resume=False)
 wandb.config = {
     "pop": 100,
     "bonus_mod": 1.0,
-    "time_mod": 1.5,
+    "time_mod": 1.2,
     "episode_length": 120,
-    "completion_mod": 1.3,
+    "completion_mod": 1.1,
     "trial": 9,
     "completion_per_frame_mod": 1.2,
     "tracks": ["testtrack", "shorttrack"],
@@ -37,6 +37,16 @@ try:
 except FileNotFoundError:
     print('creds.json not found!')
     exit()
+target_times = []
+
+for track in wandb.config['tracks']:
+    try:
+        with open(f'{track}.json') as f:
+            track = json.load(f)
+            target_times.append(track['target_time'])
+    except FileNotFoundError:
+        print(f'{track}.json not found!')
+        exit()
 
 db_string = creds['mongodb']
 client = pymongo.MongoClient(db_string)
@@ -53,7 +63,7 @@ class EvolveManager:
     gen_start: datetime
     latest = None
 
-    summed_fit_list = []
+    summed_fit_list = [0.0]
     fit_list = np.empty((0,2))
     bonus_list = np.empty((0,2))
     completion_list = np.empty((0,2))
@@ -196,17 +206,17 @@ class EvolveManager:
             avg_speed = results['avg_speed']
             avg_completion_per_frame = results['avg_completion_per_frame']
             time = results['time']
-            avg_speed_list = np.append(avg_speed_list, avg_speed)
-            avg_completion_per_frame_list = np.append(avg_completion_per_frame_list, avg_completion_per_frame)
-            completion_list = np.append(completion_list, completion)
-            bonus_list = np.append(bonus_list, bonus)
+            avg_speed_list = np.append(avg_speed_list, [avg_speed], axis=0)
+            avg_completion_per_frame_list = np.append(avg_completion_per_frame_list, [avg_completion_per_frame], axis=0)
+            completion_list = np.append(completion_list, [completion], axis=0)
+            bonus_list = np.append(bonus_list, [bonus], axis=0)
 
-            fitnesses = get_many_fitnesses(completion, bonus, time, avg_speed, avg_completion_per_frame, wandb.config)
+            fitnesses = get_many_fitnesses(completion, bonus, time, avg_speed, avg_completion_per_frame, target_times, wandb.config)
             genome.fitness = np.sum(fitnesses)
-            fit_list = np.append(fit_list, fitnesses)
+            fit_list = np.append(fit_list, [fitnesses], axis=0)
             summed_fit_list.append(genome.fitness)
-            runtime_list = np.append(runtime_list, runtime)
-            time_list = np.append(time_list, time)
+            runtime_list = np.append(runtime_list, [runtime], axis=0)
+            time_list = np.append(time_list, [time], axis=0)
 
         self.completion_list = completion_list
         self.fit_list = fit_list
@@ -215,6 +225,7 @@ class EvolveManager:
         self.runtime_list = runtime_list
         self.avg_speed_list = avg_speed_list
         self.avg_completion_list = avg_completion_per_frame_list
+        self.summed_fit_list = summed_fit_list
 
     def run(self, num_gens: int = 0):
         
@@ -226,7 +237,7 @@ class EvolveManager:
             genome_id = genome['_id']
             key = genome['key']
             started_at = genome['started_at']
-            if (datetime.now() - started_at) > timedelta(minutes=6):
+            if (datetime.now() - started_at) > timedelta(minutes=5):
                 try:
                     if genome['failed_eval']:
                         print(f'Genome {key} failed to evaluate')
@@ -242,7 +253,7 @@ class EvolveManager:
                                       '$set': {'started_eval': False, 'failed_eval': True}})
                 wandb.alert(
                     title="Evaluation Timeout",
-                    text=f"Gen: {self.generation} Genome {key} has been running for 3 minutes, marking for review",
+                    text=f"Gen: {self.generation} Genome {key} has been running for 5 minutes, marking for review",
                 )
 
 manager = EvolveManager(config_path, generation=0)
