@@ -270,7 +270,12 @@ while True:
             "Max Fitness": np.max(manager.summed_fit_list),
             "Min Fitness": np.min(manager.summed_fit_list),
             "Avg Fitness": np.mean(manager.summed_fit_list),
+            "Median Fitness": np.median(manager.summed_fit_list),
             "SD Fitness": np.std(manager.summed_fit_list),
+            "Avg Combined Completion": np.mean(np.sum(manager.completion_list, axis=1)),
+            "Median Combined Completion": np.median(np.sum(manager.completion_list, axis=1)),
+            "Max Combined Completion": np.max(np.sum(manager.completion_list, axis=1)),
+            "Min Combined Completion": np.min(np.sum(manager.completion_list, axis=1)),
         }
         for idx, track in enumerate(wandb.config['tracks']):
             track_log = {
