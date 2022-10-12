@@ -15,9 +15,9 @@ def get_fitness(completion: float, bonus: float, time: float, avg_speed: float, 
     if max_target_time != 0.0:
         time_adj = max_target_time / target_time
     if time > 0:
-        time_bonus = ((min(time, target_time) * time_adj) - (target_time * time_adj)) ** config['time_mod'] + 100 ** config['completion_mod']
+        time_bonus = ((target_time * time_adj) - (min(time, target_time) * time_adj)) ** config['time_mod'] + 100 ** config['completion_mod']
     bonus = min((bonus * time_adj), 50.0)
-    fitness = time_bonus + completion_bonus 
+    fitness = time_bonus + completion_bonus + bonus
     try:
         fitness = fitness.real
     except AttributeError:
@@ -29,3 +29,23 @@ def get_many_fitnesses(completions: list, bonuses: list, times: list, avg_speeds
     for i in range(len(completions)):
         fitnesses.append(get_fitness(completions[i], bonuses[i], times[i], avg_speeds[i], avg_completions_per_frame[i], target_times[i], np.max(target_times), config))
     return fitnesses
+
+if __name__ == "__main__":
+    print(get_fitness(0.0, 0.0, 0.0, 0.0, 60.0, 60.0))
+    print(get_fitness(50.0, 14.0, 0.0, 0.0, 0.0, 60.0, 60.0))
+    print(get_fitness(50.0, 20.0, 0.0, 0.0, 0.0, 60.0, 60.0))
+    print(get_fitness(70.0, 20.0, 0.0, 0.0, 0.0, 60.0, 60.0))
+    print(get_fitness(100.0, 20.0, 55.0, 0.0, 0.0, 60.0, 60.0))
+    print(get_fitness(100.0, 20.0, 50.0, 0.0, 0.0, 60.0, 60.0))
+    print(get_fitness(100.0, 20.0, 45.0, 0.0, 0.0, 60.0, 60.0))
+    print(get_fitness(100.0, 25.0, 45.0, 0.0, 0.0, 60.0, 60.0))
+    print(get_fitness(100.0, 50.0, 1.0, 0.0, 0.0, 60.0, 60.0))
+    print(get_fitness(0.0, 0.0, 0.0, 0.0, 30.0, 60.0))
+    print(get_fitness(50.0, 14.0, 0.0, 0.0, 0.0, 30.0, 60.0))
+    print(get_fitness(50.0, 20.0, 0.0, 0.0, 0.0, 30.0, 60.0))
+    print(get_fitness(70.0, 20.0, 0.0, 0.0, 0.0, 30.0, 60.0))
+    print(get_fitness(100.0, 20.0, 27.5, 0.0, 0.0, 30.0, 60.0))
+    print(get_fitness(100.0, 20.0, 25.0, 0.0, 0.0, 30.0, 60.0))
+    print(get_fitness(100.0, 20.0, 22.5, 0.0, 0.0, 30.0, 60.0))
+    print(get_fitness(100.0, 25.0, 22.5, 0.0, 0.0, 30.0, 60.0))
+    print(get_fitness(100.0, 50.0, 1.0, 0.0, 0.0, 30.0, 60.0))
