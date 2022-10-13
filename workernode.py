@@ -3,7 +3,7 @@ import json
 import socket
 import subprocess
 from datetime import datetime, timedelta
-from random import randint
+from random import uniform
 from time import sleep
 import argparse
 
@@ -48,7 +48,7 @@ waiting = False
 while True:
     try:
         if collection.count_documents({"started_eval": False}) != 0:
-            genome = collection.find_one({"started_eval": False})
+            genome = collection.find_one({"started_eval": False}, sort=[("generation", pymongo.ASCENDING), ("individual_num", pymongo.ASCENDING)])
             if genome is None:
                 continue
             try:
@@ -80,7 +80,8 @@ while True:
                             "avg_speed": avg_speeds,
                             "avg_completion_per_frame": avg_completions_per_frame,
                             "frame_rate": 0.0,
-                            "hostname": hostname
+                            "hostname": hostname,
+                            "finished_eval": False
                         }
                     },
                 )
@@ -133,7 +134,7 @@ while True:
                 waiting = False
             except Exception as e:
                 collection.update_one(
-                    {"_id": genome["_id"]}, {"$set": {"started_eval": False}}
+                    {"_id": genome["_id"]}, {"$set": {"started_eval": False, "error": str(e)}}"}}
                 )
                 print(f"Error In Eval: {e}")
                 waiting = False
@@ -144,9 +145,9 @@ while True:
                 print("==================")
                 waiting = True
             ## Try to desync workers
-            sleep(randint(5, 15))
+            sleep(uniform(3, 15))
     except Exception as e:
         print(f"Error: {e}")
-        sleep(randint(5, 15))
+        sleep(uniform(3, 15))
         print("==================")
     sleep(1)
