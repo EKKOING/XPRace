@@ -94,7 +94,7 @@ try:
     if frame_rate == 0:
         frame_rate = sb.frame_rate
     else:
-        frame_rate = (frame_rate + sb.frame_rate) / 2.0
+        frame_rate = min(frame_rate, sb.frame_rate)
     avg_speeds[track_num] = round(sb.average_speed, 3)
     avg_completions_per_frame[track_num] = round(sb.average_completion_per_frame, 3)
     runtimes[track_num] = round((datetime.now() - start_time).total_seconds(), 3)
