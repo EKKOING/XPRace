@@ -3,7 +3,7 @@ import json
 import socket
 import subprocess
 from datetime import datetime, timedelta
-from random import uniform
+from random import uniform, randint
 from time import sleep
 import argparse
 
@@ -32,6 +32,7 @@ db_string = creds["mongodb"]
 client = pymongo.MongoClient(db_string)
 db = client.NEAT
 collection = db.genomes
+worker_collection = db.workers
 
 hostname = ""
 import socket
@@ -134,7 +135,7 @@ while True:
                 waiting = False
             except Exception as e:
                 collection.update_one(
-                    {"_id": genome["_id"]}, {"$set": {"started_eval": False, "error": str(e)}}"}}
+                    {"_id": genome["_id"]}, {"$set": {"started_eval": False, "error": str(e)}}
                 )
                 print(f"Error In Eval: {e}")
                 waiting = False
