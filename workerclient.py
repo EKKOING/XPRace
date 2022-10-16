@@ -11,6 +11,20 @@ from neat import nn
 
 from shellracebot import ShellBot
 
+
+## Start bot
+try:
+    with open('creds.json') as f:
+        creds = json.load(f)
+except FileNotFoundError:
+    print('creds.json not found!')
+    exit(1)
+
+db_string = creds['mongodb']
+client = pymongo.MongoClient(db_string)
+db = client.NEAT
+collection = db.genomes
+genome = None
 try:
     ## Get port number track name and bot name from command line
     parser = argparse.ArgumentParser()
@@ -37,19 +51,6 @@ try:
         exit(2)
     eval_length = float(args.eval_length)
 
-    ## Start bot
-    try:
-        with open('creds.json') as f:
-            creds = json.load(f)
-    except FileNotFoundError:
-        print('creds.json not found!')
-        exit(1)
-
-    db_string = creds['mongodb']
-    client = pymongo.MongoClient(db_string)
-    db = client.NEAT
-    collection = db.genomes
-
     genome = collection.find_one({'_id': db_objid})
     if genome is None:
         print('Genome invalid!')
@@ -70,7 +71,7 @@ try:
     runtimes = genome['runtime']
     frame_rate = genome['frame_rate']
 
-    sb = ShellBot(f"EKKO{track_num}", track, args.port, headless=True)
+    sb = ShellBot(f"EKKO{track_num}", track, args.port, headless=False)
     sb.start()
     sleep(1)
     sb.ask_for_perms = True
@@ -109,5 +110,8 @@ try:
     print(f'Frame Rate: {frame_rate}')
 except Exception as e:
     print('Error in workerclient.py')
+    collection.update_one({'_id': genome['_id']}, {
+    '$set': {'error': f'Bot Error: {e}'}})
     raise e
+client.close()
 exit(0)
