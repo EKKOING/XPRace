@@ -11,7 +11,7 @@ args = parser.parse_args()
 
 workers: List[subprocess.Popen] = []
 for i in range(int(args.instances)):
-    workers.append(subprocess.Popen(["python3", "workernode.py", "-instance", str(i)]))
+    workers.append(subprocess.Popen(["python3", "workernode.py", "-instance", str(i), "-host", args.host]))
     sleep(1)
 
 while True:
@@ -20,5 +20,5 @@ while True:
             print(f"Worker {i} died!")
             worker.kill()
             worker.terminate()
-            workers[i] = subprocess.Popen(["python3", "workernode.py", "-instance", str(i)])
+            workers[i] = subprocess.Popen(["python3", "workernode.py", "-instance", str(i), "-host", args.host])
     sleep(1)
