@@ -7,6 +7,7 @@ from random import uniform, randint
 from time import sleep
 import argparse
 
+from typing import List, Union, Dict, Any
 import numpy as np
 import pymongo
 
@@ -17,6 +18,7 @@ fps = 28
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-instance", help="instance_no", required=True)
+parser.add_argument("-host", help="host", required=True)
 args = parser.parse_args()
 
 faulthandler.enable(all_threads=True)
@@ -32,7 +34,6 @@ db_string = creds["mongodb"]
 client = pymongo.MongoClient(db_string)
 db = client.NEAT
 collection = db.genomes
-worker_collection = db.workers
 
 hostname = ""
 import socket
@@ -43,6 +44,7 @@ else:
     hostname = socket.gethostbyaddr(socket.gethostname())[0]
 
 hostname += f"_{args.instance}"
+hostname = f'{args.host}_' + hostname
 
 print("=== Beginning Work Cycle ===")
 waiting = False
@@ -85,6 +87,7 @@ while True:
                     }
                 },
             )
+            client.close()
             print(f'Beginning evaluation of genome {individual_num} in generation {generation} on {tracks}!')
             for track_num, track in enumerate(tracks):
                 port_num = randint(49152, 65535)
@@ -127,14 +130,23 @@ while True:
                 sleep(1)
                 print("Server killed!")
                 print(f"=== Finished Track {track_num + 1}/{len(tracks)} ===")
+            client = pymongo.MongoClient(db_string)
+            db = client.NEAT
+            collection = db.genomes
             collection.update_one(
                 {"_id": genome["_id"]}, {"$set": {"finished_eval": True}}
             )
             print("=== Finished Eval Successfully ===")
             waiting = False
         except Exception as e:
+            client = pymongo.MongoClient(db_string)
+            db = client.NEAT
+            collection = db.genomes
+            updates: "dict[str, Union[str, bool]]" = {"started_eval": False, "finished_eval": False}
+            if str(e) != "Bot Error!":
+                updates.update({"error": f'{e}'})
             collection.update_one(
-                {"_id": genome["_id"]}, {"$set": {"started_eval": False, "finished_eval": False, "error": str(e)}}
+                {"_id": genome["_id"]}, {"$set": updates}
             )
             print(f"Error In Eval: {e}")
             print("==================")
