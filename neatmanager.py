@@ -72,6 +72,7 @@ class EvolveManager:
                              [10.0, 10.0],])
     avg_speed_list = np.empty((0,2))
     avg_completion_per_frame_list = np.empty((0,2))
+    fitness_weight = [0.5]
 
     def __init__(self, config_file: str, generation: int = 0):
         self.config_file = config_file
@@ -162,7 +163,7 @@ class EvolveManager:
                 first_sleep = False
             print(f'=== {datetime.now().strftime("%H:%M:%S")} ===\n{uncompleted_training} genomes still need to be evaluated\n{started_training} currently being evaluated\n{finished_training} have been evaluated')
             progress_bar(finished_training, started_training, len(genomes))
-            secs_tg = (ceil(uncompleted_training * np.mean(np.sum(self.runtime_list, axis=1)) / (self.num_workers + 1)))
+            secs_tg = (ceil(uncompleted_training * (np.mean(np.sum(self.runtime_list, axis=1)) + (8.0 * self.num_tracks)) / (self.num_workers + 1)))
             if secs_tg != last_secs_tg:
                 secs_since_tg_update = 0
             last_secs_tg = secs_tg
@@ -193,6 +194,7 @@ class EvolveManager:
         runtime_list = np.empty((0,self.num_tracks))
         avg_speed_list = np.empty((0,self.num_tracks))
         avg_completion_per_frame_list = np.empty((0,self.num_tracks))
+        fitness_weight = []
         for genome_id, genome in genomes:
             key = genome.key
             results = collection.find_one(
@@ -217,6 +219,7 @@ class EvolveManager:
             summed_fit_list.append(genome.fitness)
             runtime_list = np.append(runtime_list, [runtime], axis=0)
             time_list = np.append(time_list, [time], axis=0)
+            fitness_weight.append(max(fitnesses[0], 1.0) / max(genome.fitness, 1.0))
 
         self.completion_list = completion_list
         self.fit_list = fit_list
@@ -226,6 +229,7 @@ class EvolveManager:
         self.avg_speed_list = avg_speed_list
         self.avg_completion_list = avg_completion_per_frame_list
         self.summed_fit_list = summed_fit_list
+        self.fitness_weight = fitness_weight
 
     def run(self, num_gens: int = 0):
         
@@ -237,7 +241,8 @@ class EvolveManager:
             genome_id = genome['_id']
             key = genome['key']
             started_at = genome['started_at']
-            if (datetime.now() - started_at) > timedelta(minutes=5):
+            mins = 3
+            if (datetime.now() - started_at) > timedelta(minutes= mins):
                 try:
                     if genome['failed_eval']:
                         print(f'Genome {key} failed to evaluate')
@@ -248,13 +253,34 @@ class EvolveManager:
                     pass
                 delete_last_lines(5)
                 print(
-                    f'Genome {key} has been running for 3 minutes, marking for review!\n\n\n\n\n\n\n')
+                    f'Genome {key} has been running for {mins} minutes, marking for review!\n\n\n\n\n\n\n')
                 collection.update_one({'_id': genome_id}, {
                                       '$set': {'started_eval': False, 'failed_eval': True}})
+                hostname = "Unknown"
+                try:
+                    if genome['hostname']:
+                        hostname = genome['hostname']
+                except KeyError:
+                    pass
                 wandb.alert(
                     title="Evaluation Timeout",
-                    text=f"Gen: {self.generation} Genome {key} has been running for 5 minutes, marking for review",
+                    text=f"Gen: {self.generation} Genome {key} has been running for {mins} minutes, marking for review. Worker {hostname}.",
                 )
+        for genome in collection.find({'generation': self.generation, 'started_eval': True, 'finished_eval': True, 'trial': wandb.config['trial'], 'framerate': {'$lt': 24}}):
+            try:
+                hostname = genome['hostname']
+                if hostname == None:
+                    hostname = "Unknown"
+            except KeyError:
+                hostname = "Unknown"
+            frame_rate = genome['framerate']
+            delete_last_lines(5)
+            print(f'Genome {genome["key"]} has a framerate of {frame_rate} on worker {hostname}!')
+            wandb.alert(
+                title="Low Framerate",
+                text=f"Gen: {self.generation} Genome {genome['key']} on {hostname} had a framerate of {frame_rate}",
+            )
+            collection.update_one({'_id': genome['_id']}, {'$set': {'started_eval': False, 'finished_eval': False}})
 
 manager = EvolveManager(config_path, generation=0)
 while True:
@@ -276,6 +302,10 @@ while True:
             "Median Combined Completion": np.median(np.sum(manager.completion_list, axis=1)),
             "Max Combined Completion": np.max(np.sum(manager.completion_list, axis=1)),
             "Min Combined Completion": np.min(np.sum(manager.completion_list, axis=1)),
+            "Avg Fitness Weight": np.mean(manager.fitness_weight),
+            "Median Fitness Weight": np.median(manager.fitness_weight),
+            "Max Fitness Weight": np.max(manager.fitness_weight),
+            "Min Fitness Weight": np.min(manager.fitness_weight),
         }
         for idx, track in enumerate(wandb.config['tracks']):
             track_log = {
