@@ -261,6 +261,7 @@ class ShellBot(threading.Thread):
         fitness_readout = f" Fitness: {round(fitness, 2):6} - Bonus: {round(self.cum_bonus, 2):4} - Average Speed: {round(self.average_speed, 2):4} - Average %/Frame: {self.average_completion_per_frame:.2%}"
 
         waypoint_distance, waypoint_bearing = self.get_checkpoint_info(self.current_checkpoint)
+        waypoint_bearing = self.angle_diff(self.heading, waypoint_bearing)
         waypoint_readout = f" Waypoint: {self.current_checkpoint:2} Distance: {round(waypoint_distance, 1):4} units Bearing: {round(waypoint_bearing, 2):+4} degrees"
 
         if self.thrust_val > self.cum_avg_thrust:
@@ -269,6 +270,8 @@ class ShellBot(threading.Thread):
             self.cum_avg_thrust = (self.cum_avg_thrust * 3 + self.thrust_val) / 4.0
         thrust_readout = f"  0 {get_bar_graph(self.cum_avg_thrust)}  1 - Thrust: {round(self.thrust_val, 2):3} Smoothed: {round(self.cum_avg_thrust, 2):3}"
         
+        ##heading_readout = f"Heading: {self.heading} Components: {self.get_components(self.heading, self.speed)}"
+
         dash_graphs = [time_readout, completion_readout, thrust_readout, steering_readout, speed_readout, time_to_wall_readout, waypoint_readout, fitness_readout]
 
         output = '┌'
@@ -322,7 +325,7 @@ class ShellBot(threading.Thread):
             if first_checkpoint:
                 ##print(f"Checkpoint Bearing: {self.angle_diff(self.heading, angle)}")
                 first_checkpoint = False
-            angle = self.angle_diff(self.tracking, angle) / 180.0
+            angle = self.angle_diff(self.heading, angle) / 180.0
             checkpoint_info.append(dist)
             checkpoint_info.append(angle)
 
@@ -678,17 +681,7 @@ class ShellBot(threading.Thread):
         x_diff = x - self.x
         y_diff = y - self.y
 
-        angle_to = math.degrees(
-            math.atan(abs(y_diff) / abs(x_diff + 0.0000001)))
-
-        ## Too lazy for a better way to do this
-        ## See libpyAI.c line 2042 for more information
-        if x_diff <= 0 and y_diff > 0:
-            angle_to = 180 - angle_to
-        elif x_diff <= 0 and y_diff <= 0:
-            angle_to = 180 + angle_to
-        elif x_diff > 0 and y_diff <= 0:
-            angle_to = 360 - angle_to
+        angle_to = math.degrees(math.atan2(y_diff, x_diff))
         return angle_to
 
     def get_angle_from_to(self, x1: float, y1: float, x2: float, y2: float) -> float:
@@ -706,17 +699,7 @@ class ShellBot(threading.Thread):
         x_diff = x2 - x1
         y_diff = y2 - y1
 
-        angle_to = math.degrees(
-            math.atan(abs(y_diff) / abs(x_diff + 0.0000001)))
-
-        ## Too lazy for a better way to do this
-        ## See libpyAI.c line 2042 for more information
-        if x_diff <= 0 and y_diff > 0:
-            angle_to = 180 - angle_to
-        elif x_diff <= 0 and y_diff <= 0:
-            angle_to = 180 + angle_to
-        elif x_diff > 0 and y_diff <= 0:
-            angle_to = 360 - angle_to
+        angle_to = math.degrees(math.atan2(y_diff, x_diff))
         return angle_to
 
     def add_vectors(self, h1: int, s1: float, h2: int, s2: float) -> Tuple[float, float]:
@@ -736,11 +719,7 @@ class ShellBot(threading.Thread):
         Returns:
             float: result of adding the two angles
         '''       
-        while a1 <= 0:
-            a1 += 360
-        while a2 <= 0:
-            a2 += 360
-        return (a1+a2+360) % 360
+        return (a1 + a2 + 720) % 360
 
     def angle_diff(self, a1: float, a2: float) -> float:
         '''angle_diff Finds the difference between two angles
@@ -752,11 +731,13 @@ class ShellBot(threading.Thread):
         Returns:
             float: result of the difference between the two angles
         '''        
-        diff = a2 - a1
-        comp_diff = a2 + 360 - a1
-        if abs(diff) < abs(comp_diff):
-            return diff
-        return comp_diff
+        min_ang = min(a1, a2)
+        max_ang = max(a1, a2)
+        diff = max_ang - min_ang
+        comp_diff = min_ang + 360 - max_ang
+        if a2 > a1:
+            return -comp_diff if comp_diff < diff else -diff
+        return min(diff, comp_diff)
     
     def get_tt_feeler(self, angle: float, distance: float, x_vel: float, y_vel: float) -> float:
         x_dist, y_dist = self.get_components(angle, distance)
