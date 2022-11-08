@@ -399,7 +399,7 @@ class ShellBot(threading.Thread):
         step_bonus = 0.0
         speed_bonus = 0.0
         if self.speed > 0.5:
-            speed_bonus = (self.speed ** 1.1) / 1000.0
+            speed_bonus = (self.speed ** 1.1) / 250.0
 
         if self.alive == 1.0 and not self.done:
             step_bonus += speed_bonus
