@@ -543,14 +543,14 @@ class ShellBot(threading.Thread):
 
         ## Walls
         self.track_wall = ai.wallFeeler(self.scan_distance, self.tracking)
-        self.wall_front = float(ai.wallFeeler(self.scan_distance, int(self.heading)))
-        self.wall_back = float(ai.wallFeeler(self.scan_distance, int(self.angle_add(self.heading, 180))))
-        self.wall_left = float(ai.wallFeeler(self.scan_distance, int(self.angle_add(self.heading, 90))))
-        self.wall_right = float(ai.wallFeeler(self.scan_distance, int(self.angle_add(self.heading, -90))))
-        self.wall_30_left = float(ai.wallFeeler(self.scan_distance, int(self.angle_add(self.heading, 30))))
-        self.wall_30_right = float(ai.wallFeeler(self.scan_distance, int(self.angle_add(self.heading, -30))))
-        self.wall_15_left = float(ai.wallFeeler(self.scan_distance, int(self.angle_add(self.heading, 15))))
-        self.wall_15_right = float(ai.wallFeeler(self.scan_distance, int(self.angle_add(self.heading, -15))))
+        self.wall_front = self.get_average_wall_distance(int(self.heading))
+        self.wall_back = self.get_average_wall_distance(int(self.angle_add(self.heading, 180)))
+        self.wall_left = self.get_average_wall_distance(int(self.angle_add(self.heading, 90)))
+        self.wall_right = self.get_average_wall_distance(int(self.angle_add(self.heading, -90)))
+        self.wall_15_left = self.get_average_wall_distance(int(self.angle_add(self.heading, 15)))
+        self.wall_15_right = self.get_average_wall_distance(int(self.angle_add(self.heading, -15)))
+        self.wall_30_left = self.get_average_wall_distance(int(self.angle_add(self.heading, 30)))
+        self.wall_30_right = self.get_average_wall_distance(int(self.angle_add(self.heading, -30)))
 
         ## Timings
         self.tt_tracking = math.ceil(float(self.track_wall) / (self.speed + 0.0000001))
@@ -573,6 +573,20 @@ class ShellBot(threading.Thread):
             if wall < self.closest_wall:
                 self.closest_wall = wall
                 self.closest_wall_heading = degree
+    
+    def get_average_wall_distance(self, angle: int) -> float:
+        '''get_average_wall_distance Gets the average wall distance in a given angle
+
+        Args:
+            angle (int): The angle to check
+
+        Returns:
+            float: The average wall distance
+        '''
+        wall_dist = 0.0
+        for adj in range(-5, 5, 5):
+            wall_dist += float(ai.wallFeeler(self.scan_distance, angle + adj))
+        return wall_dist / 3.0
 
     def get_closer_angle(self, a1: float, a2: float) -> float:
         '''get_closer_angle Returns whichever heading is closer to the current heading of the ship
