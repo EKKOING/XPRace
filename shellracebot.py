@@ -457,7 +457,7 @@ class ShellBot(threading.Thread):
         if self.completion > self.max_completion:
             self.max_completion = self.completion
             self.max_completion_frame = self.frame
-        elif self.frame - self.max_completion_frame > 280:
+        elif self.frame - self.max_completion_frame > 28 * 5:
             self.done = True
         if self.y >= self.finish_marker and self.alive == 1.0 and not self.awaiting_reset:
             self.completed_course = True
