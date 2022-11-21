@@ -13,7 +13,6 @@ import pymongo
 
 from shellracebot import ShellBot
 
-eval_length = 120
 fps = 28
 
 parser = argparse.ArgumentParser()
@@ -90,6 +89,10 @@ while True:
             client.close()
             print(f'Beginning evaluation of genome {individual_num} in generation {generation} on {tracks}!')
             for track_num, track in enumerate(tracks):
+                eval_length = 10
+                with open(f'{track}.json') as f:
+                    track = json.load(f)
+                    eval_length += track["target_time"]
                 port_num = randint(49152, 65535)
                 print(f"Starting Server on {port_num}! Track: {track}")
                 server = subprocess.Popen(
