@@ -15,7 +15,7 @@ def get_fitness(completion: float, bonus: float, time: float, avg_speed: float, 
     if max_target_time != 0.0:
         time_adj = max_target_time / target_time
     if time > 0:
-        time_bonus = ((target_time * time_adj) - (min(time, target_time - 1.0) * time_adj)) ** config['time_mod'] + 100 ** config['completion_mod']
+        time_bonus = ((target_time * time_adj) - (min(time, target_time - 1.0) * time_adj)) ** config['time_mod'] + 75 ** config['completion_mod']
     bonus = min((bonus * time_adj), 50.0)
     fitness = time_bonus + completion_bonus + bonus
     try:
