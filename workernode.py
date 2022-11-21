@@ -91,8 +91,8 @@ while True:
             for track_num, track in enumerate(tracks):
                 eval_length = 10
                 with open(f'{track}.json') as f:
-                    track = json.load(f)
-                    eval_length += track["target_time"]
+                    track_info = json.load(f)
+                    eval_length += track_info["target_time"]
                 port_num = randint(49152, 65535)
                 print(f"Starting Server on {port_num}! Track: {track}")
                 server = subprocess.Popen(
