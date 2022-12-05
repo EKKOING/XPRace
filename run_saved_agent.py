@@ -1,86 +1,87 @@
+import faulthandler
 import json
-import pickle
+import socket
 import subprocess
 from datetime import datetime, timedelta
+from random import uniform, randint
 from time import sleep
+import argparse
 
+from typing import List, Union, Dict, Any
+import numpy as np
 import pymongo
-from GANet import GANet
-from neat import nn
 
-trackname = "testtrack"
-eval_length = 120.0
+from shellracebot import ShellBot
+
+fps = 28
+
+faulthandler.enable(all_threads=True)
 
 try:
-    with open('creds.json') as f:
+    with open("creds.json") as f:
         creds = json.load(f)
 except FileNotFoundError:
-    print('creds.json not found!')
+    print("creds.json not found!")
     exit()
 
-print('Starting Server!')
-subprocess.Popen(['./xpilots', '-map', f'{trackname}.xp', '-noQuit', '-maxClientsPerIP', '500', '-password', 'test', '-worldlives', '999', '-reset', 'no', '-fps', '28'])
-sleep(2)
-
-db_string = creds['mongodb']
+db_string = creds["mongodb"]
 client = pymongo.MongoClient(db_string)
 db = client.NEAT
 collection = db.genomes
 
-generation = input("Generation Number: ")
-try:
-    generation = int(generation)
-except ValueError:
-    print('Generation must be an integer!')
-    exit()
+trial = input("Trial Number: ")
+generation = input("Generation: ")
 
-trial = input("Trial: ")
-try:
-    trial = float(trial)
-except ValueError:
-    trial = int(trial)
-except Exception:
-    print('Trial must be an integer or float!')
-    exit()
-
-num_agents = collection.count_documents({'generation': generation, 'trial': trial, 'genome': {'$ne': None}})
-while num_agents == 0:
-    generation += 1
-    print(f'Searching for {trial}-{generation}!')
-    num_agents = collection.count_documents({'generation': generation, 'trial': trial, 'genome': {'$ne': None}})
-
-print(f'{num_agents} agents found in generation {generation}!')
-
-from shellracebot import ShellBot
-
-print('Starting Bot!')
-sb = ShellBot("EKKO", trackname)
-sb.start()
-sleep(1)
-sb.ask_for_perms = True
-# Give Us Enough Time to Type Password In
-for idx in range(0, 3):
-    print(f'Granting Operator Perms in Next {3 - idx} Seconds!!!')
+genome = collection.find_one({"trial": trial, "generation": generation}, sort=[("completion", pymongo.DESCENDING), ("time", pymongo.ASCENDING), ("bonus", pymongo.DESCENDING)])
+generation = genome["generation"]
+individual_num = genome["individual_num"]
+species = genome["species"]
+tracks = genome["tracks"]
+print(f'Running genome {individual_num} in generation {generation} on {tracks}!')
+for track_num, track in enumerate(tracks):
+    eval_length = 10
+    with open(f'{track}.json') as f:
+        track_info = json.load(f)
+        eval_length += track_info["target_time"]
+    port_num = randint(49152, 65535)
+    print(f"Starting Server on {port_num}! Track: {track}")
+    server = subprocess.Popen(
+        [
+            "./xpilots",
+            "-map", f"{track}.xp",
+            "-noQuit",
+            "-maxClientsPerIP", "500",
+            "-password", "test",
+            "-worldlives", "999",
+            "-fps", f"{fps}",
+            "-contactPort", f"{port_num}",
+        ]
+    )
+    sleep(3)
+    print("Starting Bot!")
+    bot = subprocess.Popen(
+        [
+            "python3",
+            "testclient.py",
+            "-port", f"{port_num}",
+            "-track", f"{track_num}",
+            "-dbid", f"{str(genome['_id'])}",
+            "-eval_length", f"{eval_length}",
+        ]
+    )
     sleep(1)
-
-print('==== RUN START ====')
-while True:
-    try:
-        for genome in collection.find({'generation': generation, 'trial': trial, 'genome': {'$ne': None}}).sort([('completion', pymongo.DESCENDING), ('time', pymongo.ASCENDING)]):
-            print(f'Using {trial} {genome["generation"]}-{genome["individual_num"]}!')
-            sb.nn = pickle.loads(genome['genome'])
-            sb.reset()
-            while sb.done or sb.awaiting_reset:
-                pass
-            start_time = datetime.now()
-            sb.show_info = True
-            while not sb.done and (datetime.now() - start_time).total_seconds() < eval_length:
-                sleep(0.01)
-            bonus, completion, time = sb.get_scores()
-            run_time = round((datetime.now() - start_time).total_seconds(), 3)
-            sb.show_info = False
-            sleep(0.1)
-            print(f'Bonus: {round(bonus, 3)}, Completion: {round(completion, 3)}, Time: {round(time, 3)}s, Runtime: {run_time}s Avg S: {round(sb.average_speed, 3)} Avg C: {round(sb.average_completion_per_frame, 3)}')
-    except KeyboardInterrupt:
-        print('==== Exit Request Received! ====')
-        break
+    print("Waiting for Bot to finish!")
+    bot_return_code = bot.wait()
+    sleep(1)
+    print(f"Bot finished with return code {bot_return_code}!")
+    if bot_return_code != 0:
+        server.kill()
+        server.wait()
+        print("Server killed!")
+        raise Exception("Bot Error!")
+    server.kill()
+    sleep(1)
+    print("Server killed!")
+    print(f"=== Finished Track {track_num + 1}/{len(tracks)} ===")
+print("=== Finished Test Successfully ===")
+waiting = False
