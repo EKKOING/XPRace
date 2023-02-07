@@ -44,6 +44,7 @@ class ShellBot(threading.Thread):
     done: bool = False
     start_marker: int = 50
     finish_marker: int = 1670
+    circuit: bool = False
     start_time: datetime = datetime.now()
     course_time: float = -1.0
     average_speed: float = 0.0
@@ -54,6 +55,7 @@ class ShellBot(threading.Thread):
     last_completion: float = 0.0
     max_completion: float = 0.0
     max_completion_frame: int = 0
+    current_checkpoint: int = 0
     
     ## Configuration Settings
     safety_margin: float = 1.1
@@ -119,8 +121,15 @@ class ShellBot(threading.Thread):
         with open(f'{self.gamemap}.json', 'r') as f:
             map_data = json.load(f)
             self.checkpoints = map_data["checkpoints"]
-            self.finish_marker = map_data["finish_marker"]
             self.target_time = map_data["target_time"]
+            if "circuit" in map_data:
+                self.circuit = map_data["circuit"]
+                if not self.circuit:
+                    self.finish_marker = map_data["finish_marker"]
+                else:
+                    print("Circuit Mode Detected")
+            else:
+                self.finish_marker = map_data["finish_marker"]
         
     
     ## For Interfacing with the Environment
@@ -160,6 +169,7 @@ class ShellBot(threading.Thread):
         self.max_completion_frame = 0
         self.reset_time = datetime.now()
         self.frame_rate = 28.0
+        self.current_checkpoint = 0
 
     def run_loop(self,) -> None:
         ##print(f"Bot starting frame {self.frame}")
@@ -180,6 +190,7 @@ class ShellBot(threading.Thread):
                 self.last_alive = 0.0
                 self.awaiting_reset = True
                 self.reset_frame = self.frame
+                self.current_checkpoint = 0
                 return
             if self.close_now:
                 ai.quitAI()
@@ -410,22 +421,23 @@ class ShellBot(threading.Thread):
         return round(self.cum_bonus, 3), round(completion_percentage_bonus, 3), round(self.course_time, 3)
     
     def get_completion_percent(self,) -> float:
-        if self.y >= self.finish_marker or self.completed_course:
+        if (not self.circuit and self.y >= self.finish_marker) or self.completed_course:
             return 100.0
         
         percent_per_checkpt = 100.0 / float(len(self.checkpoints) - 1)
         checkpt_idx = self.get_current_checkpoint() - 1
 
-        try:
-            if self.checkpoints[checkpt_idx + 1][1] >= self.finish_marker:
-                percentage = 100.0 - percent_per_checkpt
-                diff_finish = self.finish_marker - self.checkpoints[checkpt_idx][1]
-                percent_to_finish = max(min(diff_finish - (self.finish_marker - self.y) / diff_finish, 1.0), 0.0)
-                percentage += percent_to_finish * percent_per_checkpt
-                percentage = max(min(round(percentage, 3), 99.999), 0.1)
-                return percentage
-        except:
-            print("Error in get_completion_percent")
+        if not self.circuit:
+            try:
+                if self.checkpoints[checkpt_idx + 1][1] >= self.finish_marker:
+                    percentage = 100.0 - percent_per_checkpt
+                    diff_finish = self.finish_marker - self.checkpoints[checkpt_idx][1]
+                    percent_to_finish = max(min(diff_finish - (self.finish_marker - self.y) / diff_finish, 1.0), 0.0)
+                    percentage += percent_to_finish * percent_per_checkpt
+                    percentage = max(min(round(percentage, 3), 99.999), 0.1)
+                    return percentage
+            except:
+                print("Error in get_completion_percent")
 
         base_percentage = percent_per_checkpt * checkpt_idx
         distance_to_checkpt = self.get_checkpoint_info(checkpt_idx)[0]
@@ -459,12 +471,22 @@ class ShellBot(threading.Thread):
             self.max_completion_frame = self.frame
         elif self.frame - self.max_completion_frame > 28 * 5:
             self.done = True
-        if self.y >= self.finish_marker and self.alive == 1.0 and not self.awaiting_reset:
-            self.completed_course = True
-            self.done = True
-            course_time = datetime.now() - self.start_time
-            self.course_time = course_time.total_seconds()
-            ##print(f"Bot completed course in {round(self.course_time, 3)} seconds")
+        if not self.circuit:
+            if self.y >= self.finish_marker and self.alive == 1.0 and not self.awaiting_reset:
+                self.completed_course = True
+                self.done = True
+                self.completion = 100.0
+                course_time = datetime.now() - self.start_time
+                self.course_time = course_time.total_seconds()
+                ##print(f"Bot completed course in {round(self.course_time, 3)} seconds")
+        else:
+            if self.current_checkpoint == len(self.checkpoints) - 1 and self.alive == 1.0 and not self.awaiting_reset:
+                if abs(self.x - self.checkpoints[self.current_checkpoint][0]) < 75 and abs(self.y - self.checkpoints[self.current_checkpoint][1]) < 75:
+                    self.done = True
+                    self.completion = 100.0
+                    course_time = datetime.now() - self.start_time
+                    self.course_time = course_time.total_seconds()
+                    ##print(f"Bot completed course in {round(self.course_time, 3)} seconds")
         if self.alive != 1.0 and not self.awaiting_reset:
             self.done = True
             self.course_time = -1.0
@@ -473,10 +495,10 @@ class ShellBot(threading.Thread):
         '''get_current_checkpoint Returns the current checkpoint
         '''
         check_dists = []
-        for checkpoint in self.checkpoints:
+        for checkpoint in self.checkpoints[max(0, self.current_checkpoint - 2):min(len(self.checkpoints), self.current_checkpoint + 3)]:
            check_dists.append(self.get_distance(self.x, self.y, checkpoint[0], checkpoint[1]))
         
-        current_idx = int(np.argmin(check_dists))
+        current_idx = int(np.argmin(check_dists)+ max(self.current_checkpoint - 2, 0))
         dist_to_next = check_dists[min(current_idx + 1, len(check_dists) - 1)]
         current_wpt = self.checkpoints[current_idx]
         next_wpt = self.checkpoints[min(current_idx + 1, len(check_dists) - 1)]
