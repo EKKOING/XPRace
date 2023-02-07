@@ -26,7 +26,11 @@ try:
     if not args.track:
         print("No track specified!")
         exit(2)
-    track_num = int(args.track)
+    track_num = None
+    if args.track.isnumeric():
+        track_num = int(args.track)
+    else:
+        track = args.track
     if not args.dbid:
         print("No genome id specified!")
         exit(2)
@@ -59,7 +63,8 @@ try:
     individual_num = genome['individual_num']
     species = genome['species']
     tracks = genome['tracks']
-    track = tracks[track_num]
+    if track_num is not None:
+        track = tracks[track_num]
     bonuses = genome['bonus']
     completions = genome['completion']
     times = genome['time']
