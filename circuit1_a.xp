@@ -1,6 +1,7 @@
-#Created by MapXpress 4.5.0 on Sun Feb 05 17:09:42 2023
+#Created by MapXpress 4.5.0 on Tue Feb 07 00:55:38 2023
 
 #Options updated for Xpilot 4.5.0
+#
 #
 #
 #
@@ -16,7 +17,7 @@ blockfriction : 0.08
 targetteamcollision : no
 timing : yes
 checkpointradius : 3.0
-racelaps : 1
+racelaps : 3
 initialfuel : 9999999
 itemenergypackprob : 0
 itemtankprob : 0
