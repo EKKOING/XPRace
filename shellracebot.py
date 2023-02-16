@@ -11,7 +11,9 @@ import sys
 import threading
 from datetime import datetime, timedelta
 from random import randint, random
+from sys import exc_info
 from time import sleep
+from traceback import format_exception
 from typing import List, Tuple, Union
 
 import libpyAI as ai
@@ -20,6 +22,12 @@ from neat import nn
 
 from consoleutils import delete_last_lines, get_bar_graph
 from xpracefitness import get_fitness
+
+
+def print_exception():
+    etype, value, tb = exc_info()
+    info, error = format_exception(etype, value, tb)[-2:]
+    print(f'Exception in:\n{info}\n{error}')
 
 
 class ShellBot(threading.Thread):
@@ -87,6 +95,7 @@ class ShellBot(threading.Thread):
     ## State of the bot
     alive: float = 0.0
     last_alive: float = 0.0
+    cause_of_death: str = "Failed to start"
 
     ## Properties For Processing
     ## Ship Info
@@ -110,6 +119,7 @@ class ShellBot(threading.Thread):
 
     ## Track Info
     checkpoints: List[List[int]] = [[0, 0]]
+    course_length_list: List[float] = [0.0]
 
     def __init__(self, username:str="InitNoName", mapname: str = 'testtrack', port = None, headless: bool = False) -> None:
         super(ShellBot, self).__init__()
@@ -130,6 +140,11 @@ class ShellBot(threading.Thread):
                     print("Circuit Mode Detected")
             else:
                 self.finish_marker = map_data["finish_marker"]
+            self.course_length_list = [0.0 for _ in self.checkpoints]
+            if "starting_heading" in map_data:
+                self.starting_heading = map_data["starting_heading"]
+            else:
+                self.starting_heading = 90
         
     
     ## For Interfacing with the Environment
@@ -177,12 +192,19 @@ class ShellBot(threading.Thread):
         self.frame += 1
 
         try:
+            ai.setTurnSpeedDeg(self.turnspeed)
+
             if self.ask_for_perms:
                 ai.talk("/password test")
                 self.ask_for_perms = False
             if self.alive == 1.0 and self.awaiting_reset and self.reset_frame + 28 <= self.frame:
+                self.heading = int(ai.selfHeadingDeg())
+                if abs(self.angle_diff(self.heading, self.starting_heading)) > 5:
+                    self.turn_to_degree(self.starting_heading)
+                    return
                 self.reset_values()
                 ai.thrust(1)
+                self.turnspeed = 20
             if self.reset_now:
                 self.reset_now = False
                 ai.talk("/reset all")
@@ -191,11 +213,10 @@ class ShellBot(threading.Thread):
                 self.awaiting_reset = True
                 self.reset_frame = self.frame
                 self.current_checkpoint = 0
+                self.turnspeed = 90
                 return
             if self.close_now:
                 ai.quitAI()
-
-            ai.setTurnSpeedDeg(self.turnspeed)
             
             self.collect_info()
             self.check_done()
@@ -206,6 +227,9 @@ class ShellBot(threading.Thread):
            pass
         except Exception as e:
              print("Error: " + str(e))
+             print_exception()
+             if self.test_mode:
+                raise e
         self.calculate_bonus()
 
         if self.test_mode or self.show_info:
@@ -281,9 +305,23 @@ class ShellBot(threading.Thread):
             self.cum_avg_thrust = (self.cum_avg_thrust * 3 + self.thrust_val) / 4.0
         thrust_readout = f"  0 {get_bar_graph(self.cum_avg_thrust)}  1 - Thrust: {round(self.thrust_val, 2):3} Smoothed: {round(self.cum_avg_thrust, 2):3}"
         
-        ##heading_readout = f"Heading: {self.heading} Components: {self.get_components(self.heading, self.speed)}"
+        heading_readout = f"Heading: {self.heading} Components: {self.get_components(self.heading, self.speed)}"
 
-        dash_graphs = [time_readout, completion_readout, thrust_readout, steering_readout, speed_readout, time_to_wall_readout, waypoint_readout, fitness_readout]
+        framerate_readout = f" Framerate: {round(self.frame_rate, 1):3} - Frames: {self.frame:6}"
+
+        dash_graphs = [time_readout, completion_readout, thrust_readout, steering_readout, speed_readout, time_to_wall_readout, waypoint_readout, fitness_readout, framerate_readout, heading_readout]
+
+        if self.test_mode:
+            checkpoint_debug = "["
+            checkpoint_shortlist = [checkpoint for checkpoint in range(self.current_checkpoint - 1, self.current_checkpoint + 2) if checkpoint >= 0 and checkpoint < len(self.checkpoints)]
+
+            for checkpoint in checkpoint_shortlist:
+                distance = self.get_checkpoint_info(checkpoint)[0]
+                checkpoint_debug += f"{int(distance):3}, "
+
+            checkpoint_debug += "]"
+            dash_graphs.append(checkpoint_debug)
+            
 
         output = '┌'
         for idx in range(len(feeler_view[0])):
@@ -420,6 +458,16 @@ class ShellBot(threading.Thread):
         completion_percentage_bonus = self.get_completion_percent()
         return round(self.cum_bonus, 3), round(completion_percentage_bonus, 3), round(self.course_time, 3)
     
+    def get_total_course_length(self, idx: int = len(checkpoints) - 1) -> float:
+        if idx <= 0:
+            return 0.0
+        if self.course_length_list[idx] != 0.0:
+            return self.course_length_list[idx]
+        total_length = self.get_total_course_length(idx - 1)
+        total_length += self.get_distance(self.checkpoints[idx - 1][0], self.checkpoints[idx - 1][1], self.checkpoints[idx][0], self.checkpoints[idx][1])
+        self.course_length_list[idx] = total_length
+        return total_length
+
     def get_completion_percent(self,) -> float:
         if (not self.circuit and self.y >= self.finish_marker) or self.completed_course:
             return 100.0
@@ -439,10 +487,12 @@ class ShellBot(threading.Thread):
             except:
                 print("Error in get_completion_percent")
 
-        base_percentage = percent_per_checkpt * checkpt_idx
-        distance_to_checkpt = self.get_checkpoint_info(checkpt_idx)[0]
-        distance_btw_checkpt = self.get_distance(self.checkpoints[checkpt_idx][0], self.checkpoints[checkpt_idx][1], self.checkpoints[min(checkpt_idx + 1, len(self.checkpoints) - 1)][0], self.checkpoints[min(checkpt_idx + 1, len(self.checkpoints) - 1)][1])
-        percent_to_next = (distance_to_checkpt / distance_btw_checkpt) * percent_per_checkpt
+        percent_per_unit = 100.0 / self.get_total_course_length(len(self.checkpoints) - 1)
+
+        base_percentage = percent_per_unit * self.get_total_course_length(checkpt_idx)
+        distance_to_checkpt = self.get_distance(self.x, self.y, self.checkpoints[checkpt_idx + 1][0], self.checkpoints[checkpt_idx + 1][1])
+        distance_btw_checkpt = self.get_distance(self.checkpoints[checkpt_idx][0], self.checkpoints[checkpt_idx][1], self.checkpoints[min(checkpt_idx + 1, len(self.checkpoints) - 1)][0], self.checkpoints[min(checkpt_idx + 1, len(self.checkpoints) - 1)][1]) - 120.0
+        percent_to_next = (distance_btw_checkpt - distance_to_checkpt) * percent_per_unit
         return max(min(round(base_percentage + percent_to_next, 3), 99.999), 0.1)
 
     
@@ -471,6 +521,7 @@ class ShellBot(threading.Thread):
             self.max_completion_frame = self.frame
         elif self.frame - self.max_completion_frame > 28 * 5:
             self.done = True
+            self.cause_of_death = "Stuck"
         if not self.circuit:
             if self.y >= self.finish_marker and self.alive == 1.0 and not self.awaiting_reset:
                 self.completed_course = True
@@ -478,6 +529,7 @@ class ShellBot(threading.Thread):
                 self.completion = 100.0
                 course_time = datetime.now() - self.start_time
                 self.course_time = course_time.total_seconds()
+                self.cause_of_death = "Completed"
                 ##print(f"Bot completed course in {round(self.course_time, 3)} seconds")
         else:
             if self.current_checkpoint == len(self.checkpoints) - 1 and self.alive == 1.0 and not self.awaiting_reset:
@@ -486,9 +538,11 @@ class ShellBot(threading.Thread):
                     self.completion = 100.0
                     course_time = datetime.now() - self.start_time
                     self.course_time = course_time.total_seconds()
+                    self.cause_of_death = "Completed"
                     ##print(f"Bot completed course in {round(self.course_time, 3)} seconds")
         if self.alive != 1.0 and not self.awaiting_reset:
             self.done = True
+            self.cause_of_death = "Collision"
             self.course_time = -1.0
 
     def get_current_checkpoint(self,) -> int:
@@ -498,17 +552,20 @@ class ShellBot(threading.Thread):
         for checkpoint in self.checkpoints[max(0, self.current_checkpoint - 2):min(len(self.checkpoints), self.current_checkpoint + 3)]:
            check_dists.append(self.get_distance(self.x, self.y, checkpoint[0], checkpoint[1]))
         
-        current_idx = int(np.argmin(check_dists)+ max(self.current_checkpoint - 2, 0))
-        dist_to_next = check_dists[min(current_idx + 1, len(check_dists) - 1)]
-        current_wpt = self.checkpoints[current_idx]
-        next_wpt = self.checkpoints[min(current_idx + 1, len(check_dists) - 1)]
+        closest_check_dist_idx = int(np.argmin(check_dists))
+        closest_idx = int(closest_check_dist_idx + max(self.current_checkpoint - 2, 0))
+        dist_to_closest = check_dists[closest_check_dist_idx]
+        closest_wpt = self.checkpoints[closest_idx]
+        
+        next_wpt = self.checkpoints[min(closest_idx + 1, len(check_dists) - 1)]
+        dist_to_next = self.get_distance(self.x, self.y, next_wpt[0], next_wpt[1])
 
-        dist_btw_next = self.get_distance(current_wpt[0], current_wpt[1], next_wpt[0], next_wpt[1])
+        dist_btw_next = self.get_distance(closest_wpt[0], closest_wpt[1], next_wpt[0], next_wpt[1])
 
-        if dist_to_next < dist_btw_next + 25 and current_idx < len(self.checkpoints) - 1:
-            current_idx += 1
+        if dist_to_closest < 120.0 or (dist_to_next < dist_btw_next + 50.0 and closest_idx < len(self.checkpoints) - 1):
+            closest_idx += 1
 
-        return current_idx
+        return max(min(closest_idx, len(self.checkpoints) - 1), 0)
 
         # for idx, checkpoint in enumerate(self.checkpoints):
         #     if self.y + 40 > checkpoint[1]:
@@ -540,7 +597,7 @@ class ShellBot(threading.Thread):
             degree (float): Heading to turn to
         '''
         delta = self.angle_diff(self.heading, degree)
-        if abs(delta) > 20:
+        if abs(delta) > self.turnspeed:
             if delta < 0:
                 ai.turnRight(1)
             else:
@@ -783,33 +840,45 @@ class ShellBot(threading.Thread):
         return tt_feel
 
 if __name__ == "__main__":
-    test = ShellBot('Test', 'testtrack')
+    map_name = input('Map name: ')
+    test = ShellBot('Test', map_name)
     test.test_mode = True
-    sleep(3)
+    sleep(1)
     test.start()
     test.ask_for_perms = True
+    sleep(1)
+    test.reset()
+    while test.awaiting_reset or test.done:
+        pass
     while not test.done:
         pass
-    print('END RUN 1')
+    test.test_mode = False
+    print(f'END RUN 1: {test.cause_of_death}')
     print(f'{test.get_scores()}')
     print(f'{test.average_completion_per_frame}')
     test.reset()
-    while test.done:
+    test.test_mode = True
+    while test.awaiting_reset or test.done:
         pass
     while not test.done:
         pass
-    print('END RUN 2')
+    test.test_mode = False
+    print(f'END RUN 2: {test.cause_of_death}')
     print(f'{test.get_scores()}')
     test.reset()
-    while test.done:
+    test.test_mode = True
+    while test.awaiting_reset or test.done:
         pass
     sleep(30)
-    print('END RUN 3')
+    test.test_mode = False
+    print(f'END RUN 3: {test.cause_of_death}')
     print(f'{test.get_scores()}')
     test.reset()
+    test.test_mode = True
     while test.done:
         pass
+    test.test_mode = False
     sleep(30)
-    print('END RUN 4')
+    print(f'END RUN 4: {test.cause_of_death}')
     print(f'{test.get_scores()}')
-
+    print(f'ALL TESTS COMPLETE')
