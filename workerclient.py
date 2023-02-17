@@ -69,6 +69,7 @@ try:
     avg_completions_per_frame = genome['avg_completion_per_frame']
     runtimes = genome['runtime']
     frame_rate = genome['frame_rate']
+    autopsies = genome['autopsy']
 
     sb = ShellBot(f"EKKO{track_num}", track, args.port, headless=True)
     sb.start()
@@ -84,13 +85,13 @@ try:
     sb.show_info = True
     while not sb.done and (datetime.now() - start_time).total_seconds() < eval_length:
         sleep(0.01)
-        ## Early Termination
-        if (datetime.now() - start_time).total_seconds() > 10.0 and sb.y < 100:
-            break
+    if not sb.done and (datetime.now() - start_time).total_seconds() >= eval_length:
+        sb.cause_of_death = 'Time'
     sb.show_info = False
     bonuses[track_num], completions[track_num], times[track_num] = sb.get_scores()
     last_xs[track_num] = sb.x
     last_ys[track_num] = sb.y
+    autopsies[track_num] = sb.cause_of_death
     if frame_rate == 0:
         frame_rate = sb.frame_rate
     else:
@@ -99,7 +100,7 @@ try:
     avg_completions_per_frame[track_num] = round(sb.average_completion_per_frame, 3)
     runtimes[track_num] = round((datetime.now() - start_time).total_seconds(), 3)
     collection.update_one({'_id': genome['_id']}, {
-    '$set': {'bonus': bonuses, 'completion': completions, 'time': times, 'runtime': runtimes, 'x': last_xs, 'y': last_ys, 'avg_speed': avg_speeds, 'avg_completion_per_frame': avg_completions_per_frame, 'frame_rate': frame_rate}})
+    '$set': {'bonus': bonuses, 'completion': completions, 'time': times, 'runtime': runtimes, 'x': last_xs, 'y': last_ys, 'avg_speed': avg_speeds, 'avg_completion_per_frame': avg_completions_per_frame, 'frame_rate': frame_rate, 'autopsy': autopsies}})
     try:
         sb.close_bot()
         print('Bot Closed!')
