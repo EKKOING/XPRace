@@ -1,8 +1,8 @@
-''' 
+""" 
 Shellbot is a framework for controlling bots from other threads
 Author: Nicholas Lorentzen
 Date: 20220607
-'''
+"""
 
 import json
 import math
@@ -27,7 +27,7 @@ from xpracefitness import get_fitness
 def print_exception():
     etype, value, tb = exc_info()
     info, error = format_exception(etype, value, tb)[-2:]
-    print(f'Exception in:\n{info}\n{error}')
+    print(f"Exception in:\n{info}\n{error}")
 
 
 class ShellBot(threading.Thread):
@@ -64,7 +64,7 @@ class ShellBot(threading.Thread):
     max_completion: float = 0.0
     max_completion_frame: int = 0
     current_checkpoint: int = 0
-    
+
     ## Configuration Settings
     safety_margin: float = 1.1
     turnspeed: int = 20
@@ -121,14 +121,20 @@ class ShellBot(threading.Thread):
     checkpoints: List[List[int]] = [[0, 0]]
     course_length_list: List[float] = [0.0]
 
-    def __init__(self, username:str="InitNoName", mapname: str = 'testtrack', port = None, headless: bool = False) -> None:
+    def __init__(
+        self,
+        username: str = "InitNoName",
+        mapname: str = "testtrack",
+        port=None,
+        headless: bool = False,
+    ) -> None:
         super(ShellBot, self).__init__()
         self.username = username
         self.max_turntime = math.ceil(180 / self.turnspeed)
         self.gamemap = mapname
         self.port = port
         self.headless = headless
-        with open(f'{self.gamemap}.json', 'r') as f:
+        with open(f"{self.gamemap}.json", "r") as f:
             map_data = json.load(f)
             self.checkpoints = map_data["checkpoints"]
             self.target_time = map_data["target_time"]
@@ -145,10 +151,11 @@ class ShellBot(threading.Thread):
                 self.starting_heading = map_data["starting_heading"]
             else:
                 self.starting_heading = 90
-        
-    
+
     ## For Interfacing with the Environment
-    def run(self,) -> None:
+    def run(
+        self,
+    ) -> None:
         if not self.started:
             if self.headless:
                 ai.headlessMode()
@@ -159,15 +166,21 @@ class ShellBot(threading.Thread):
             ai.start(self.run_loop, run_args)
         else:
             print("Bot already started")
-    
-    def reset(self,) -> None:
+
+    def reset(
+        self,
+    ) -> None:
         self.reset_now = True
 
-    def close_bot(self,) -> None:
+    def close_bot(
+        self,
+    ) -> None:
         self.close_now = True
         ai.quitAI()
 
-    def reset_values(self,) -> None:
+    def reset_values(
+        self,
+    ) -> None:
         self.awaiting_reset = False
         self.start_time = datetime.now()
         self.died_but_no_reset = False
@@ -186,7 +199,9 @@ class ShellBot(threading.Thread):
         self.frame_rate = 28.0
         self.current_checkpoint = 0
 
-    def run_loop(self,) -> None:
+    def run_loop(
+        self,
+    ) -> None:
         ##print(f"Bot starting frame {self.frame}")
         self.reset_flags()
         self.frame += 1
@@ -197,7 +212,11 @@ class ShellBot(threading.Thread):
             if self.ask_for_perms:
                 ai.talk("/password test")
                 self.ask_for_perms = False
-            if self.alive == 1.0 and self.awaiting_reset and self.reset_frame + 28 <= self.frame:
+            if (
+                self.alive == 1.0
+                and self.awaiting_reset
+                and self.reset_frame + 28 <= self.frame
+            ):
                 self.heading = int(ai.selfHeadingDeg())
                 if abs(self.angle_diff(self.heading, self.starting_heading)) > 5:
                     self.turn_to_degree(self.starting_heading)
@@ -217,18 +236,18 @@ class ShellBot(threading.Thread):
                 return
             if self.close_now:
                 ai.quitAI()
-            
+
             self.collect_info()
             self.check_done()
             self.set_action()
             self.perform_action()
             ai.setPowerLevel(self.power_level)
         except AttributeError:
-           pass
+            pass
         except Exception as e:
-             print("Error: " + str(e))
-             print_exception()
-             if self.test_mode:
+            print("Error: " + str(e))
+            print_exception()
+            if self.test_mode:
                 raise e
         self.calculate_bonus()
 
@@ -237,9 +256,13 @@ class ShellBot(threading.Thread):
         else:
             self.just_printed_info = False
         self.last_alive = self.alive
-        self.frame_rate = self.frame / (datetime.now() - self.reset_time).total_seconds()
+        self.frame_rate = (
+            self.frame / (datetime.now() - self.reset_time).total_seconds()
+        )
 
-    def print_info(self,) -> None:
+    def print_info(
+        self,
+    ) -> None:
         if self.just_printed_info:
             delete_last_lines(14)
         feeler_view = []
@@ -249,26 +272,32 @@ class ShellBot(threading.Thread):
                 blank_row.append(" ")
             feeler_view.append(blank_row)
         feeler_view[10][10] = "^"
-        feelers = [self.wall_front, self.wall_left, self.wall_right, self.wall_30_left, self.wall_30_right]
-        feeler_chars = [u'\u2502', '─', u'\u2572', u'\u2571']
+        feelers = [
+            self.wall_front,
+            self.wall_left,
+            self.wall_right,
+            self.wall_30_left,
+            self.wall_30_right,
+        ]
+        feeler_chars = ["\u2502", "─", "\u2572", "\u2571"]
         feeler_percents = []
         for idx, feeler in enumerate(feelers):
             feeler = float(min(feeler, 500.0))
             feeler_percent = feeler / 500.0
             feeler_percent = int(round(feeler_percent * 10.0))
             feeler_percents.append(feeler_percent)
-        
+
         for idx in range(0, feeler_percents[0]):
             feeler_view[9 - idx][10] = feeler_chars[0]
-        
+
         feeler_percents[1] = int(round(feeler_percents[1] / 1.0))
         for idx in range(0, feeler_percents[1]):
             feeler_view[10][9 - idx] = feeler_chars[1]
-        
+
         feeler_percents[2] = int(round(feeler_percents[2] / 1.0))
         for idx in range(0, feeler_percents[2]):
             feeler_view[10][11 + idx] = feeler_chars[1]
-        
+
         feeler_percents[3] = int(round(feeler_percents[3] / 1.0))
         for idx in range(0, feeler_percents[3]):
             feeler_view[9 - idx][9 - idx] = feeler_chars[2]
@@ -284,18 +313,29 @@ class ShellBot(threading.Thread):
 
         # feeler_view[10 - checkpoint_y_diff][10 + checkpoint_x_diff] = "*"
 
-        current_coursetime = round((datetime.now() - self.start_time).total_seconds(), 3)
+        current_coursetime = round(
+            (datetime.now() - self.start_time).total_seconds(), 3
+        )
 
-        time_readout = f' Current Lap Time: {current_coursetime:6}s'
+        time_readout = f" Current Lap Time: {current_coursetime:6}s"
         completion_readout = f"    {get_bar_graph(self.completion / 100.0)}    - Course Completion: {self.completion / 100.0:.2%}"
         steering_readout = f"  1 {get_bar_graph(-self.turn_val, center=True)} -1 - Steering: {round(self.turn_val * 20.0, 2):+4} degrees"
         speed_readout = f"  0 {get_bar_graph(self.last_observations[0])}  1 - Speed: {round(self.speed, 2):4} units/frame"
         time_to_wall_readout = f"  0 {get_bar_graph(self.last_observations[13])}  1 - Time to Wall: {self.tt_tracking:3} frames"
 
-        fitness = get_fitness(self.completion, self.cum_bonus, current_coursetime, self.average_speed, self.average_completion_per_frame, self.target_time)
+        fitness = get_fitness(
+            self.completion,
+            self.cum_bonus,
+            current_coursetime,
+            self.average_speed,
+            self.average_completion_per_frame,
+            self.target_time,
+        )
         fitness_readout = f" Fitness: {round(fitness, 2):6} - Bonus: {round(self.cum_bonus, 2):4} - Average Speed: {round(self.average_speed, 2):4} - Average %/Frame: {self.average_completion_per_frame:.2%}"
 
-        waypoint_distance, waypoint_bearing = self.get_checkpoint_info(self.current_checkpoint)
+        waypoint_distance, waypoint_bearing = self.get_checkpoint_info(
+            self.current_checkpoint
+        )
         waypoint_bearing = self.angle_diff(self.heading, waypoint_bearing)
         waypoint_readout = f" Waypoint: {self.current_checkpoint:2} Distance: {round(waypoint_distance, 1):4} units Bearing: {round(waypoint_bearing, 2):+4} degrees"
 
@@ -304,16 +344,35 @@ class ShellBot(threading.Thread):
         else:
             self.cum_avg_thrust = (self.cum_avg_thrust * 3 + self.thrust_val) / 4.0
         thrust_readout = f"  0 {get_bar_graph(self.cum_avg_thrust)}  1 - Thrust: {round(self.thrust_val, 2):3} Smoothed: {round(self.cum_avg_thrust, 2):3}"
-        
+
         heading_readout = f"Heading: {self.heading} Components: {self.get_components(self.heading, self.speed)}"
 
-        framerate_readout = f" Framerate: {round(self.frame_rate, 1):3} - Frames: {self.frame:6}"
+        framerate_readout = (
+            f" Framerate: {round(self.frame_rate, 1):3} - Frames: {self.frame:6}"
+        )
 
-        dash_graphs = [time_readout, completion_readout, thrust_readout, steering_readout, speed_readout, time_to_wall_readout, waypoint_readout, fitness_readout, framerate_readout, heading_readout]
+        dash_graphs = [
+            time_readout,
+            completion_readout,
+            thrust_readout,
+            steering_readout,
+            speed_readout,
+            time_to_wall_readout,
+            waypoint_readout,
+            fitness_readout,
+            framerate_readout,
+            heading_readout,
+        ]
 
         if self.test_mode:
             checkpoint_debug = "["
-            checkpoint_shortlist = [checkpoint for checkpoint in range(self.current_checkpoint - 1, self.current_checkpoint + 2) if checkpoint >= 0 and checkpoint < len(self.checkpoints)]
+            checkpoint_shortlist = [
+                checkpoint
+                for checkpoint in range(
+                    self.current_checkpoint - 1, self.current_checkpoint + 2
+                )
+                if checkpoint >= 0 and checkpoint < len(self.checkpoints)
+            ]
 
             for checkpoint in checkpoint_shortlist:
                 distance = self.get_checkpoint_info(checkpoint)[0]
@@ -321,30 +380,31 @@ class ShellBot(threading.Thread):
 
             checkpoint_debug += "]"
             dash_graphs.append(checkpoint_debug)
-            
 
-        output = '┌'
+        output = "┌"
         for idx in range(len(feeler_view[0])):
-            output += '─'
-        output += '┐\n'
+            output += "─"
+        output += "┐\n"
 
         for feeler_row in feeler_view:
-            output += '│'
+            output += "│"
             for char in feeler_row:
                 output += char
-            output += '│'
+            output += "│"
             if len(dash_graphs) != 0:
                 output += dash_graphs.pop(0)
-            output += '\n'
-        output += '└'
+            output += "\n"
+        output += "└"
         for idx in range(0, len(feeler_view[0])):
-            output += '─'
-        output += '┘\n'
+            output += "─"
+        output += "┘\n"
 
         print(output)
         self.just_printed_info = True
-        
-    def get_observations(self,) -> List[float]:
+
+    def get_observations(
+        self,
+    ) -> List[float]:
         ## Normalize the values
         wall_track = 1.0 - (float(self.track_wall) / float(self.scan_distance))
         closest_wall = 1.0 - (float(self.closest_wall) / float(self.scan_distance))
@@ -362,13 +422,17 @@ class ShellBot(threading.Thread):
         tt_tracking = max(1.0 - (self.tt_tracking / 140.0), 0.0)
         tt_retro_point = max(1.0 - (self.tt_retro_point / 70.0), 0.0)
         angle_diff_tracking = self.angle_diff(self.heading, self.tracking) / 180.0
-        angle_diff_closest = self.angle_diff(self.heading, self.closest_wall_heading) / 180.0
+        angle_diff_closest = (
+            self.angle_diff(self.heading, self.closest_wall_heading) / 180.0
+        )
 
         self.current_checkpoint = self.get_current_checkpoint()
 
         checkpoint_info = []
         first_checkpoint = True
-        for checkpoint_num in range(self.current_checkpoint, self.current_checkpoint + 3):
+        for checkpoint_num in range(
+            self.current_checkpoint, self.current_checkpoint + 3
+        ):
             dist, angle = self.get_checkpoint_info(checkpoint_num)
             dist = 1.0 - (float(dist) / float(self.scan_distance))
             if first_checkpoint:
@@ -378,9 +442,26 @@ class ShellBot(threading.Thread):
             checkpoint_info.append(dist)
             checkpoint_info.append(angle)
 
-
         ## Organize the values
-        oberservations = [ship_speed, wall_track, angle_diff_tracking, closest_wall, angle_diff_closest, wall_front, wall_back, wall_left, wall_right, wall_15_right, wall_15_left, wall_30_right, wall_30_left, tt_tracking, tt_retro_point, self.last_thrust, self.last_turn]
+        oberservations = [
+            ship_speed,
+            wall_track,
+            angle_diff_tracking,
+            closest_wall,
+            angle_diff_closest,
+            wall_front,
+            wall_back,
+            wall_left,
+            wall_right,
+            wall_15_right,
+            wall_15_left,
+            wall_30_right,
+            wall_30_left,
+            tt_tracking,
+            tt_retro_point,
+            self.last_thrust,
+            self.last_turn,
+        ]
         oberservations.extend(checkpoint_info)
 
         ## Check Normalization
@@ -395,13 +476,17 @@ class ShellBot(threading.Thread):
         return oberservations
 
     def sigmoid_activation(self, x: np.ndarray) -> np.ndarray:
-        return (1/(1+np.exp(-x)))
-    
-    def forward_propogation(self, inputs: np.ndarray, weights: np.ndarray, biases: np.ndarray) -> np.ndarray:
+        return 1 / (1 + np.exp(-x))
+
+    def forward_propogation(
+        self, inputs: np.ndarray, weights: np.ndarray, biases: np.ndarray
+    ) -> np.ndarray:
         activations = self.sigmoid_activation(np.dot(inputs, weights) + biases)
         return activations
 
-    def set_action(self,) -> None:
+    def set_action(
+        self,
+    ) -> None:
         ## Get the observations
         observations = self.get_observations()
 
@@ -410,7 +495,7 @@ class ShellBot(threading.Thread):
         if not self.test_mode:
             outputs = self.nn.activate(inputs)
         else:
-            outputs = [0,0]
+            outputs = [0, 0]
 
         self.thrust_val = outputs[0]
         self.turn_val = outputs[1]
@@ -428,14 +513,18 @@ class ShellBot(threading.Thread):
             self.power_level = 14.0
         else:
             self.thrust = False
-        
+
         self.turn_val = max(min(self.turn_val, 1.0), -1.0)
-        self.desired_heading = self.angle_add(float(self.heading), self.turn_val * float(self.turnspeed))
+        self.desired_heading = self.angle_add(
+            float(self.heading), self.turn_val * float(self.turnspeed)
+        )
 
         self.last_thrust = self.thrust_val
         self.last_turn = self.turn_val
-    
-    def calculate_bonus(self,) -> None:
+
+    def calculate_bonus(
+        self,
+    ) -> None:
         self.cum_speed += self.speed
         self.cum_completion_per_frame += self.completion - self.last_completion
         if self.frame != 0:
@@ -453,25 +542,38 @@ class ShellBot(threading.Thread):
         if self.alive == 1.0 and not self.done:
             step_bonus += speed_bonus
         self.cum_bonus += step_bonus
-    
-    def get_scores(self,) -> Tuple:
+
+    def get_scores(
+        self,
+    ) -> Tuple:
         completion_percentage_bonus = self.get_completion_percent()
-        return round(self.cum_bonus, 3), round(completion_percentage_bonus, 3), round(self.course_time, 3)
-    
+        return (
+            round(self.cum_bonus, 3),
+            round(completion_percentage_bonus, 3),
+            round(self.course_time, 3),
+        )
+
     def get_total_course_length(self, idx: int = len(checkpoints) - 1) -> float:
         if idx <= 0:
             return 0.0
         if self.course_length_list[idx] != 0.0:
             return self.course_length_list[idx]
         total_length = self.get_total_course_length(idx - 1)
-        total_length += self.get_distance(self.checkpoints[idx - 1][0], self.checkpoints[idx - 1][1], self.checkpoints[idx][0], self.checkpoints[idx][1])
+        total_length += self.get_distance(
+            self.checkpoints[idx - 1][0],
+            self.checkpoints[idx - 1][1],
+            self.checkpoints[idx][0],
+            self.checkpoints[idx][1],
+        )
         self.course_length_list[idx] = total_length
         return total_length
 
-    def get_completion_percent(self,) -> float:
+    def get_completion_percent(
+        self,
+    ) -> float:
         if (not self.circuit and self.y >= self.finish_marker) or self.completed_course:
             return 100.0
-        
+
         percent_per_checkpt = 100.0 / float(len(self.checkpoints) - 1)
         checkpt_idx = self.get_current_checkpoint() - 1
 
@@ -480,40 +582,66 @@ class ShellBot(threading.Thread):
                 if self.checkpoints[checkpt_idx + 1][1] >= self.finish_marker:
                     percentage = 100.0 - percent_per_checkpt
                     diff_finish = self.finish_marker - self.checkpoints[checkpt_idx][1]
-                    percent_to_finish = max(min(diff_finish - (self.finish_marker - self.y) / diff_finish, 1.0), 0.0)
+                    percent_to_finish = max(
+                        min(
+                            diff_finish - (self.finish_marker - self.y) / diff_finish,
+                            1.0,
+                        ),
+                        0.0,
+                    )
                     percentage += percent_to_finish * percent_per_checkpt
                     percentage = max(min(round(percentage, 3), 99.999), 0.1)
                     return percentage
             except:
                 print("Error in get_completion_percent")
 
-        percent_per_unit = 100.0 / self.get_total_course_length(len(self.checkpoints) - 1)
+        percent_per_unit = 100.0 / self.get_total_course_length(
+            len(self.checkpoints) - 1
+        )
 
         base_percentage = percent_per_unit * self.get_total_course_length(checkpt_idx)
-        distance_to_checkpt = self.get_distance(self.x, self.y, self.checkpoints[checkpt_idx + 1][0], self.checkpoints[checkpt_idx + 1][1])
-        distance_btw_checkpt = self.get_distance(self.checkpoints[checkpt_idx][0], self.checkpoints[checkpt_idx][1], self.checkpoints[min(checkpt_idx + 1, len(self.checkpoints) - 1)][0], self.checkpoints[min(checkpt_idx + 1, len(self.checkpoints) - 1)][1]) - 120.0
-        percent_to_next = (distance_btw_checkpt - distance_to_checkpt) * percent_per_unit
+        distance_to_checkpt = self.get_distance(
+            self.x,
+            self.y,
+            self.checkpoints[checkpt_idx + 1][0],
+            self.checkpoints[checkpt_idx + 1][1],
+        )
+        distance_btw_checkpt = (
+            self.get_distance(
+                self.checkpoints[checkpt_idx][0],
+                self.checkpoints[checkpt_idx][1],
+                self.checkpoints[min(checkpt_idx + 1, len(self.checkpoints) - 1)][0],
+                self.checkpoints[min(checkpt_idx + 1, len(self.checkpoints) - 1)][1],
+            )
+            - 120.0
+        )
+        percent_to_next = (
+            distance_btw_checkpt - distance_to_checkpt
+        ) * percent_per_unit
         return max(min(round(base_percentage + percent_to_next, 3), 99.999), 0.1)
 
-    
-    def perform_action(self,) -> None:
+    def perform_action(
+        self,
+    ) -> None:
         if self.thrust == True:
             ai.thrust(1)
 
         self.turn_to_degree(self.desired_heading)
-    
-    def reset_flags(self,) -> None:
-        '''reset_flags Sets all flags to false and resets control states
-        '''
+
+    def reset_flags(
+        self,
+    ) -> None:
+        """reset_flags Sets all flags to false and resets control states"""
         self.turn, self.thrust, self.shoot = False, False, False
         ai.turnLeft(0)
         ai.turnRight(0)
         ai.thrust(0)
         self.last_action_failed = 0.0
-    
-    def check_done(self,) -> None:
-        '''check_done Checks if the bot is done
-        '''
+
+    def check_done(
+        self,
+    ) -> None:
+        """check_done Checks if the bot is done"""
         if self.frame < 28 or self.done and not self.awaiting_reset:
             return
         if self.completion > self.max_completion:
@@ -523,7 +651,11 @@ class ShellBot(threading.Thread):
             self.done = True
             self.cause_of_death = "Stuck"
         if not self.circuit:
-            if self.y >= self.finish_marker and self.alive == 1.0 and not self.awaiting_reset:
+            if (
+                self.y >= self.finish_marker
+                and self.alive == 1.0
+                and not self.awaiting_reset
+            ):
                 self.completed_course = True
                 self.done = True
                 self.completion = 100.0
@@ -532,8 +664,15 @@ class ShellBot(threading.Thread):
                 self.cause_of_death = "Completed"
                 ##print(f"Bot completed course in {round(self.course_time, 3)} seconds")
         else:
-            if self.current_checkpoint == len(self.checkpoints) - 1 and self.alive == 1.0 and not self.awaiting_reset:
-                if abs(self.x - self.checkpoints[self.current_checkpoint][0]) < 75 and abs(self.y - self.checkpoints[self.current_checkpoint][1]) < 75:
+            if (
+                self.current_checkpoint == len(self.checkpoints) - 1
+                and self.alive == 1.0
+                and not self.awaiting_reset
+            ):
+                if (
+                    abs(self.x - self.checkpoints[self.current_checkpoint][0]) < 75
+                    and abs(self.y - self.checkpoints[self.current_checkpoint][1]) < 75
+                ):
                     self.done = True
                     self.completion = 100.0
                     self.completed_course = True
@@ -546,24 +685,36 @@ class ShellBot(threading.Thread):
             self.cause_of_death = "Collision"
             self.course_time = -1.0
 
-    def get_current_checkpoint(self,) -> int:
-        '''get_current_checkpoint Returns the current checkpoint
-        '''
+    def get_current_checkpoint(
+        self,
+    ) -> int:
+        """get_current_checkpoint Returns the current checkpoint"""
         check_dists = []
-        for checkpoint in self.checkpoints[max(0, self.current_checkpoint - 2):min(len(self.checkpoints), self.current_checkpoint + 3)]:
-           check_dists.append(self.get_distance(self.x, self.y, checkpoint[0], checkpoint[1]))
-        
+        for checkpoint in self.checkpoints[
+            max(0, self.current_checkpoint - 2) : min(
+                len(self.checkpoints), self.current_checkpoint + 3
+            )
+        ]:
+            check_dists.append(
+                self.get_distance(self.x, self.y, checkpoint[0], checkpoint[1])
+            )
+
         closest_check_dist_idx = int(np.argmin(check_dists))
         closest_idx = int(closest_check_dist_idx + max(self.current_checkpoint - 2, 0))
         dist_to_closest = check_dists[closest_check_dist_idx]
         closest_wpt = self.checkpoints[closest_idx]
-        
+
         next_wpt = self.checkpoints[min(closest_idx + 1, len(check_dists) - 1)]
         dist_to_next = self.get_distance(self.x, self.y, next_wpt[0], next_wpt[1])
 
-        dist_btw_next = self.get_distance(closest_wpt[0], closest_wpt[1], next_wpt[0], next_wpt[1])
+        dist_btw_next = self.get_distance(
+            closest_wpt[0], closest_wpt[1], next_wpt[0], next_wpt[1]
+        )
 
-        if dist_to_closest < 120.0 or (dist_to_next < dist_btw_next + 50.0 and closest_idx < len(self.checkpoints) - 1):
+        if dist_to_closest < 120.0 or (
+            dist_to_next < dist_btw_next + 50.0
+            and closest_idx < len(self.checkpoints) - 1
+        ):
             closest_idx += 1
 
         return max(min(closest_idx, len(self.checkpoints) - 1), 0)
@@ -572,31 +723,32 @@ class ShellBot(threading.Thread):
         #     if self.y + 40 > checkpoint[1]:
         #         return idx + 1
 
-    
     def get_checkpoint_info(self, checkpoint_idx: int) -> tuple:
-        '''get_checkpoint_info gets information about the checkpoint
+        """get_checkpoint_info gets information about the checkpoint
 
         Args:
             checkpoint_idx (int): The index of the checkpoint
 
         Returns:
             tuple: (The distance to the checkpoint, The angle to the checkpoint)
-        '''
+        """
 
         checkpoint_idx = max(min(checkpoint_idx, len(self.checkpoints) - 1), 0)
         checkpoint = self.checkpoints[checkpoint_idx]
         checkpoint_x = checkpoint[0]
         checkpoint_y = checkpoint[1]
         checkpoint_dist = self.get_distance(self.x, self.y, checkpoint_x, checkpoint_y)
-        checkpoint_angle = self.get_angle_from_to(self.x, self.y, checkpoint_x, checkpoint_y)
+        checkpoint_angle = self.get_angle_from_to(
+            self.x, self.y, checkpoint_x, checkpoint_y
+        )
         return checkpoint_dist, checkpoint_angle
-    
+
     def turn_to_degree(self, degree: float) -> None:
-        '''turn_to_degree Turns the bot to the desired heading
+        """turn_to_degree Turns the bot to the desired heading
 
         Args:
             degree (float): Heading to turn to
-        '''
+        """
         delta = self.angle_diff(self.heading, degree)
         if abs(delta) > self.turnspeed:
             if delta < 0:
@@ -606,7 +758,9 @@ class ShellBot(threading.Thread):
         else:
             ai.turnToDeg(int(degree))
 
-    def collect_info(self,) -> None:
+    def collect_info(
+        self,
+    ) -> None:
         ## Basics
         self.alive = float(ai.selfAlive())
 
@@ -624,28 +778,47 @@ class ShellBot(threading.Thread):
         ## Walls
         self.track_wall = ai.wallFeeler(self.scan_distance, self.tracking)
         self.wall_front = self.get_average_wall_distance(int(self.heading))
-        self.wall_back = self.get_average_wall_distance(int(self.angle_add(self.heading, 180)))
-        self.wall_left = self.get_average_wall_distance(int(self.angle_add(self.heading, 90)))
-        self.wall_right = self.get_average_wall_distance(int(self.angle_add(self.heading, -90)))
-        self.wall_15_left = self.get_average_wall_distance(int(self.angle_add(self.heading, 15)))
-        self.wall_15_right = self.get_average_wall_distance(int(self.angle_add(self.heading, -15)))
-        self.wall_30_left = self.get_average_wall_distance(int(self.angle_add(self.heading, 30)))
-        self.wall_30_right = self.get_average_wall_distance(int(self.angle_add(self.heading, -30)))
+        self.wall_back = self.get_average_wall_distance(
+            int(self.angle_add(self.heading, 180))
+        )
+        self.wall_left = self.get_average_wall_distance(
+            int(self.angle_add(self.heading, 90))
+        )
+        self.wall_right = self.get_average_wall_distance(
+            int(self.angle_add(self.heading, -90))
+        )
+        self.wall_15_left = self.get_average_wall_distance(
+            int(self.angle_add(self.heading, 15))
+        )
+        self.wall_15_right = self.get_average_wall_distance(
+            int(self.angle_add(self.heading, -15))
+        )
+        self.wall_30_left = self.get_average_wall_distance(
+            int(self.angle_add(self.heading, 30))
+        )
+        self.wall_30_right = self.get_average_wall_distance(
+            int(self.angle_add(self.heading, -30))
+        )
 
         ## Timings
         self.tt_tracking = math.ceil(float(self.track_wall) / (self.speed + 0.0000001))
         self.tt_retro = math.ceil(self.speed / float(self.power_level))
 
         ## Timings to timing pts
-        self.tt_retro_point = min(self.tt_tracking - ((self.max_turntime + self.tt_retro) * self.safety_margin + 1), 70.0)
+        self.tt_retro_point = min(
+            self.tt_tracking
+            - ((self.max_turntime + self.tt_retro) * self.safety_margin + 1),
+            70.0,
+        )
 
         self.last_completion = self.completion
         self.completion = self.get_completion_percent()
 
     ##Utility Functions
-    def update_closest_wall(self,) -> None:
-        '''update_closest_wall Updates the closest wall distance and heading
-        '''
+    def update_closest_wall(
+        self,
+    ) -> None:
+        """update_closest_wall Updates the closest wall distance and heading"""
         self.closest_wall = self.scan_distance
         self.closest_wall_heading = -1
         for degree in range(0, 360, 30):
@@ -653,23 +826,23 @@ class ShellBot(threading.Thread):
             if wall < self.closest_wall:
                 self.closest_wall = wall
                 self.closest_wall_heading = degree
-    
+
     def get_average_wall_distance(self, angle: int) -> float:
-        '''get_average_wall_distance Gets the average wall distance in a given angle
+        """get_average_wall_distance Gets the average wall distance in a given angle
 
         Args:
             angle (int): The angle to check
 
         Returns:
             float: The average wall distance
-        '''
+        """
         wall_dist = 0.0
         for adj in range(-5, 5, 5):
             wall_dist += float(ai.wallFeeler(self.scan_distance, angle + adj))
         return wall_dist / 3.0
 
     def get_closer_angle(self, a1: float, a2: float) -> float:
-        '''get_closer_angle Returns whichever heading is closer to the current heading of the ship
+        """get_closer_angle Returns whichever heading is closer to the current heading of the ship
 
         Args:
             a1 (float): First heading
@@ -677,13 +850,17 @@ class ShellBot(threading.Thread):
 
         Returns:
             float: The heading that is closer to the current heading of the ship
-        '''        
-        if abs(self.angle_diff(self.heading, a1)) < abs(self.angle_diff(self.heading, a2)):
+        """
+        if abs(self.angle_diff(self.heading, a1)) < abs(
+            self.angle_diff(self.heading, a2)
+        ):
             return a1
         return a2
 
-    def get_cpa_self(self, x, y, heading, speed, t_step: float = 1) -> Tuple[float, float, float, float]:
-        '''get_cpa_self Ever wondered how long it will be until some object either hits or passes the ship? No... Well this function calculates that for you.
+    def get_cpa_self(
+        self, x, y, heading, speed, t_step: float = 1
+    ) -> Tuple[float, float, float, float]:
+        """get_cpa_self Ever wondered how long it will be until some object either hits or passes the ship? No... Well this function calculates that for you.
 
         Args:
             x (int): X coordinate of the object
@@ -693,11 +870,33 @@ class ShellBot(threading.Thread):
 
         Returns:
             Tuple[float, float, float, float]: The time to CPA in frames and the distance to CPA in pixels and the coordinates of the CPA
-        '''
-        return self.get_cpa(self.x, self.y, self.tracking, self.speed, x, y, heading, speed, t_step=t_step)
+        """
+        return self.get_cpa(
+            self.x,
+            self.y,
+            self.tracking,
+            self.speed,
+            x,
+            y,
+            heading,
+            speed,
+            t_step=t_step,
+        )
 
-    def get_cpa(self, x1: int, y1: int, h1: int, s1: float, x2: int, y2: int, h2: int, s2: float, max_t: int = 9999, t_step: float = 1) -> Tuple[float, float, float, float]:
-        '''get_cpa Ever wondered how long it will be until some object either hits or passes some other object? No... Well this function calculates that for you.
+    def get_cpa(
+        self,
+        x1: int,
+        y1: int,
+        h1: int,
+        s1: float,
+        x2: int,
+        y2: int,
+        h2: int,
+        s2: float,
+        max_t: int = 9999,
+        t_step: float = 1,
+    ) -> Tuple[float, float, float, float]:
+        """get_cpa Ever wondered how long it will be until some object either hits or passes some other object? No... Well this function calculates that for you.
 
         Args:
             x1 (int): X coordinate of the first object
@@ -713,7 +912,7 @@ class ShellBot(threading.Thread):
 
         Returns:
             Tuple[float, float, float, float]: The time to CPA in frames and the distance to CPA in pixels and the coordinates of the CPA
-        '''        
+        """
         y_vel_1, x_vel_1 = self.get_components(h1, s1)
         y_vel_2, x_vel_2 = self.get_components(h2, s2)
         found_min = False
@@ -721,7 +920,8 @@ class ShellBot(threading.Thread):
         t: float = 1
         while not found_min and t < max_t:
             current_dist = self.get_distance(
-                x1 + x_vel_1 * t, y1 + y_vel_1 * t, x2 + x_vel_2 * t, y2 + y_vel_2 * t)
+                x1 + x_vel_1 * t, y1 + y_vel_1 * t, x2 + x_vel_2 * t, y2 + y_vel_2 * t
+            )
             if current_dist < last_dist:
                 t += t_step
                 last_dist = current_dist
@@ -732,7 +932,7 @@ class ShellBot(threading.Thread):
         return t, last_dist, x1 + x_vel_1 * t, y1 + y_vel_1 * t
 
     def get_components(self, heading: float, speed: float) -> Tuple[float, float]:
-        '''get_components Returns the x and y components of a given heading and speed
+        """get_components Returns the x and y components of a given heading and speed
 
         Args:
             heading (float): heading of the object
@@ -740,7 +940,7 @@ class ShellBot(threading.Thread):
 
         Returns:
             Tuple[float, float]: x and y components of the given heading and speed
-        '''
+        """
 
         heading_rad: float = math.radians(heading)
         x: float = speed * math.cos(heading_rad)
@@ -749,7 +949,7 @@ class ShellBot(threading.Thread):
         return x, y
 
     def get_distance(self, x1: float, y1: float, x2: float, y2: float) -> float:
-        '''get_distance Returns the distance between two points
+        """get_distance Returns the distance between two points
 
         Args:
             x1 (float): x coordinate of the first point
@@ -759,11 +959,11 @@ class ShellBot(threading.Thread):
 
         Returns:
             float: Distance between the two points
-        '''        
+        """
         return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
 
     def get_angle_to(self, x: float, y: float) -> float:
-        '''get_angle_to Finds the heading the ship would need to face to get to a point
+        """get_angle_to Finds the heading the ship would need to face to get to a point
 
         Args:
             x (float): x coordinate of the point
@@ -771,7 +971,7 @@ class ShellBot(threading.Thread):
 
         Returns:
             float: angle to the point
-        '''        
+        """
         x_diff = x - self.x
         y_diff = y - self.y
 
@@ -779,7 +979,7 @@ class ShellBot(threading.Thread):
         return angle_to
 
     def get_angle_from_to(self, x1: float, y1: float, x2: float, y2: float) -> float:
-        '''get_angle_to Finds the heading from 1 point to another
+        """get_angle_to Finds the heading from 1 point to another
 
         Args:
             x1 (float): x coordinate of the first point
@@ -789,14 +989,16 @@ class ShellBot(threading.Thread):
 
         Returns:
             float: angle to the second point from the first point
-        '''        
+        """
         x_diff = x2 - x1
         y_diff = y2 - y1
 
         angle_to = math.degrees(math.atan2(y_diff, x_diff))
         return angle_to
 
-    def add_vectors(self, h1: int, s1: float, h2: int, s2: float) -> Tuple[float, float]:
+    def add_vectors(
+        self, h1: int, s1: float, h2: int, s2: float
+    ) -> Tuple[float, float]:
         x_vel1, y_vel1 = self.get_components(h1, s1)
         x_vel2, y_vel2 = self.get_components(h2, s2)
         x_vel = x_vel1 + x_vel2
@@ -804,7 +1006,7 @@ class ShellBot(threading.Thread):
         return self.get_angle_to(x_vel, y_vel), pow(pow(x_vel, 2) + pow(y_vel, 2), 0.5)
 
     def angle_add(self, a1: float, a2: float) -> float:
-        '''angle_add Adds two angles together
+        """angle_add Adds two angles together
 
         Args:
             a1 (float): angle 1
@@ -812,11 +1014,11 @@ class ShellBot(threading.Thread):
 
         Returns:
             float: result of adding the two angles
-        '''       
+        """
         return (a1 + a2 + 720) % 360
 
     def angle_diff(self, a1: float, a2: float) -> float:
-        '''angle_diff Finds the difference between two angles
+        """angle_diff Finds the difference between two angles
 
         Args:
             a1 (float): angle 1
@@ -824,7 +1026,7 @@ class ShellBot(threading.Thread):
 
         Returns:
             float: result of the difference between the two angles
-        '''        
+        """
         min_ang = min(a1, a2)
         max_ang = max(a1, a2)
         diff = max_ang - min_ang
@@ -832,17 +1034,20 @@ class ShellBot(threading.Thread):
         if a2 > a1:
             return -comp_diff if comp_diff < diff else -diff
         return min(diff, comp_diff)
-    
-    def get_tt_feeler(self, angle: float, distance: float, x_vel: float, y_vel: float) -> float:
+
+    def get_tt_feeler(
+        self, angle: float, distance: float, x_vel: float, y_vel: float
+    ) -> float:
         x_dist, y_dist = self.get_components(angle, distance)
         tt_x = x_dist / (x_vel + 0.0000001)
         tt_y = y_dist / (y_vel + 0.0000001)
         tt_feel = min(tt_x, tt_y)
         return tt_feel
 
+
 if __name__ == "__main__":
-    map_name = input('Map name: ')
-    test = ShellBot('Test', map_name)
+    map_name = input("Map name: ")
+    test = ShellBot("Test", map_name)
     test.test_mode = True
     sleep(1)
     test.start()
@@ -854,9 +1059,9 @@ if __name__ == "__main__":
     while not test.done:
         pass
     test.test_mode = False
-    print(f'END RUN 1: {test.cause_of_death}')
-    print(f'{test.get_scores()}')
-    print(f'{test.average_completion_per_frame}')
+    print(f"END RUN 1: {test.cause_of_death}")
+    print(f"{test.get_scores()}")
+    print(f"{test.average_completion_per_frame}")
     test.reset()
     test.test_mode = True
     while test.awaiting_reset or test.done:
@@ -864,22 +1069,22 @@ if __name__ == "__main__":
     while not test.done:
         pass
     test.test_mode = False
-    print(f'END RUN 2: {test.cause_of_death}')
-    print(f'{test.get_scores()}')
+    print(f"END RUN 2: {test.cause_of_death}")
+    print(f"{test.get_scores()}")
     test.reset()
     test.test_mode = True
     while test.awaiting_reset or test.done:
         pass
     sleep(30)
     test.test_mode = False
-    print(f'END RUN 3: {test.cause_of_death}')
-    print(f'{test.get_scores()}')
+    print(f"END RUN 3: {test.cause_of_death}")
+    print(f"{test.get_scores()}")
     test.reset()
     test.test_mode = True
     while test.done:
         pass
     test.test_mode = False
     sleep(30)
-    print(f'END RUN 4: {test.cause_of_death}')
-    print(f'{test.get_scores()}')
-    print(f'ALL TESTS COMPLETE')
+    print(f"END RUN 4: {test.cause_of_death}")
+    print(f"{test.get_scores()}")
+    print(f"ALL TESTS COMPLETE")
