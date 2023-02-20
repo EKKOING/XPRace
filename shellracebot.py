@@ -536,6 +536,7 @@ class ShellBot(threading.Thread):
                 if abs(self.x - self.checkpoints[self.current_checkpoint][0]) < 75 and abs(self.y - self.checkpoints[self.current_checkpoint][1]) < 75:
                     self.done = True
                     self.completion = 100.0
+                    self.completed_course = True
                     course_time = datetime.now() - self.start_time
                     self.course_time = course_time.total_seconds()
                     self.cause_of_death = "Completed"
