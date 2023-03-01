@@ -67,6 +67,7 @@ while True:
             avg_completions_per_frame = np.zeros(num_tracks).tolist()
             runtimes = np.zeros(num_tracks).tolist()
             autopsies = ["Unknown" for _ in range(num_tracks)]
+            frames = np.zeros(num_tracks).tolist()
             collection.update_one(
                 {"_id": genome["_id"]},
                 {
@@ -84,7 +85,8 @@ while True:
                         "frame_rate": 0.0,
                         "hostname": hostname,
                         "finished_eval": False,
-                        "autopsy": autopsies
+                        "autopsy": autopsies,
+                        "frame": frames
                     }
                 },
             )

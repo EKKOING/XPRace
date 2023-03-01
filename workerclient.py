@@ -70,6 +70,7 @@ try:
     runtimes = genome['runtime']
     frame_rate = genome['frame_rate']
     autopsies = genome['autopsy']
+    frames = genome['frame']
 
     sb = ShellBot(f"EKKO{track_num}", track, args.port, headless=True)
     sb.start()
@@ -99,6 +100,7 @@ try:
     avg_speeds[track_num] = round(sb.average_speed, 3)
     avg_completions_per_frame[track_num] = round(sb.average_completion_per_frame, 3)
     runtimes[track_num] = round((datetime.now() - start_time).total_seconds(), 3)
+    frames[track_num] = sb.course_frames
     collection.update_one({'_id': genome['_id']}, {
     '$set': {'bonus': bonuses, 'completion': completions, 'time': times, 'runtime': runtimes, 'x': last_xs, 'y': last_ys, 'avg_speed': avg_speeds, 'avg_completion_per_frame': avg_completions_per_frame, 'frame_rate': frame_rate, 'autopsy': autopsies}})
     try:

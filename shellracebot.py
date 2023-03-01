@@ -55,6 +55,7 @@ class ShellBot(threading.Thread):
     circuit: bool = False
     start_time: datetime = datetime.now()
     course_time: float = -1.0
+    course_frames: int = -1
     average_speed: float = 0.0
     cum_speed: float = 0.0
     average_completion_per_frame: float = 0.0
@@ -662,6 +663,7 @@ class ShellBot(threading.Thread):
                 course_time = datetime.now() - self.start_time
                 self.course_time = course_time.total_seconds()
                 self.cause_of_death = "Completed"
+                self.course_frames = self.frame
                 ##print(f"Bot completed course in {round(self.course_time, 3)} seconds")
         else:
             if (
@@ -678,6 +680,7 @@ class ShellBot(threading.Thread):
                     self.completed_course = True
                     course_time = datetime.now() - self.start_time
                     self.course_time = course_time.total_seconds()
+                    self.course_frames = self.frame
                     self.cause_of_death = "Completed"
                     ##print(f"Bot completed course in {round(self.course_time, 3)} seconds")
         if self.alive != 1.0 and not self.awaiting_reset:
