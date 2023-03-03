@@ -86,7 +86,8 @@ while True:
                         "hostname": hostname,
                         "finished_eval": False,
                         "autopsy": autopsies,
-                        "frame": frames
+                        "frame": frames,
+                        "end_frame": frames
                     }
                 },
             )
