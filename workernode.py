@@ -68,6 +68,7 @@ while True:
             runtimes = np.zeros(num_tracks).tolist()
             autopsies = ["Unknown" for _ in range(num_tracks)]
             frames = np.zeros(num_tracks).tolist()
+            time_diffs = np.zeros(num_tracks).tolist()
             collection.update_one(
                 {"_id": genome["_id"]},
                 {
@@ -87,7 +88,8 @@ while True:
                         "finished_eval": False,
                         "autopsy": autopsies,
                         "frame": frames,
-                        "end_frame": frames
+                        "end_frame": frames,
+                        "time_diff": time_diffs
                     }
                 },
             )

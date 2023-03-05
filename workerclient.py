@@ -72,6 +72,7 @@ try:
     autopsies = genome['autopsy']
     frames = genome['frame']
     end_frames = genome['end_frame']
+    time_diffs = genome['time_diff']
 
     sb = ShellBot(f"EKKO{track_num}", track, args.port, headless=True)
     sb.start()
@@ -102,8 +103,12 @@ try:
     avg_completions_per_frame[track_num] = round(sb.average_completion_per_frame, 3)
     runtimes[track_num] = round((datetime.now() - start_time).total_seconds(), 3)
     frames[track_num] = sb.course_frames
+    if sb.completed_course:
+        time_diffs[track_num] = float(frames[track_num]) / 28.0 - times[track_num]
+    else:
+        time_diffs[track_num] = float(end_frames[track_num]) / 28.0 - runtimes[track_num]
     collection.update_one({'_id': genome['_id']}, {
-    '$set': {'bonus': bonuses, 'completion': completions, 'time': times, 'runtime': runtimes, 'x': last_xs, 'y': last_ys, 'avg_speed': avg_speeds, 'avg_completion_per_frame': avg_completions_per_frame, 'frame_rate': frame_rate, 'autopsy': autopsies, 'frame': frames, 'end_frame': end_frames}})
+    '$set': {'bonus': bonuses, 'completion': completions, 'time': times, 'runtime': runtimes, 'x': last_xs, 'y': last_ys, 'avg_speed': avg_speeds, 'avg_completion_per_frame': avg_completions_per_frame, 'frame_rate': frame_rate, 'autopsy': autopsies, 'frame': frames, 'end_frame': end_frames, 'time_diff': time_diffs}})
     try:
         sb.close_bot()
         print('Bot Closed!')
