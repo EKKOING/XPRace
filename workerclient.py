@@ -72,7 +72,7 @@ try:
     end_frames = genome['end_frame']
     time_diffs = genome['time_diff']
 
-    sb = ShellBot(f"EKKO{track_num}", track, args.port, headless=False)
+    sb = ShellBot(f"EKKO{track_num}", track, args.port, headless=True)
     sb.start()
     sleep(1)
     sb.ask_for_perms = True
