@@ -111,16 +111,14 @@ try:
         collection.update_one({'_id': genome['_id']}, {'$set': {'failed_eval': True, 'error': 'No frames!'}})
         exit(1)
     frames[track_num] = sb.course_frames
-    frame_adj_runtime = 0.0
     if sb.completed_course:
-        frame_adj_runtime = float(frames[track_num]) / 28.0
-        time_diffs[track_num] = frame_adj_runtime - times[track_num]
+        frame_adj_runtimes[track_num] = float(frames[track_num]) / 28.0
+        time_diffs[track_num] = frame_adj_runtimes[track_num] - times[track_num]
     else:
-        frame_adj_runtime = float(end_frames[track_num]) / 28.0
-        time_diffs[track_num] = float(end_frames[track_num]) / 28.0 - runtimes[track_num]
-    frame_adj_runtimes[track_num] = frame_adj_runtime
+        frame_adj_runtimes[track_num] = float(end_frames[track_num]) / 28.0
+        time_diffs[track_num] = frame_adj_runtimes[track_num] - runtimes[track_num]
     collection.update_one({'_id': genome['_id']}, {
-    '$set': {'bonus': bonuses, 'completion': completions, 'time': times, 'runtime': runtimes, 'x': last_xs, 'y': last_ys, 'avg_speed': avg_speeds, 'avg_completion_per_frame': avg_completions_per_frame, 'frame_rate': frame_rate, 'autopsy': autopsies, 'frame': frames, 'end_frame': end_frames, 'time_diff': time_diffs, 'frame_adj_runtime': frame_adj_runtime}})
+    '$set': {'bonus': bonuses, 'completion': completions, 'time': times, 'runtime': runtimes, 'x': last_xs, 'y': last_ys, 'avg_speed': avg_speeds, 'avg_completion_per_frame': avg_completions_per_frame, 'frame_rate': frame_rate, 'autopsy': autopsies, 'frame': frames, 'end_frame': end_frames, 'time_diff': time_diffs, 'frame_adj_runtime': frame_adj_runtimes}})
     try:
         sb.close_bot()
         print('Bot Closed!')
