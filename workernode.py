@@ -152,9 +152,9 @@ while True:
             client = pymongo.MongoClient(db_string)
             db = client.NEAT
             collection = db.genomes
-            updates: "dict[str, Union[str, bool]]" = {"started_eval": False, "finished_eval": False}
+            updates: Dict[str, Any] = {"started_eval": True, "finished_eval": False, 'failed_eval': True}
             if str(e) != "Bot Error!":
-                updates.update({"error": f'{e}'})
+                updates["exception"]= f'{e}'
             collection.update_one(
                 {"_id": genome["_id"]}, {"$set": updates}
             )

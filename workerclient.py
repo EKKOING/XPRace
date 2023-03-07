@@ -90,25 +90,37 @@ try:
         sleep(0.01)
     if not sb.done and (datetime.now() - start_time).total_seconds() >= eval_length:
         sb.cause_of_death = 'Time'
+    runtimes[track_num] = round((datetime.now() - start_time).total_seconds(), 3)
+    end_frames[track_num] = sb.frame
     sb.show_info = False
     bonuses[track_num], completions[track_num], times[track_num] = sb.get_scores()
     last_xs[track_num] = sb.x
     last_ys[track_num] = sb.y
     autopsies[track_num] = sb.cause_of_death
-    if frame_rate == 0:
-        frame_rate = sb.frame_rate
-    else:
-        frame_rate = min(frame_rate, sb.frame_rate)
+
+    if sb.frame_rate:
+        if frame_rate == 0.0:
+            frame_rate = sb.frame_rate
+        else:
+            frame_rate = min(frame_rate, sb.frame_rate)
     avg_speeds[track_num] = round(sb.average_speed, 3)
     avg_completions_per_frame[track_num] = round(sb.average_completion_per_frame, 3)
-    runtimes[track_num] = round((datetime.now() - start_time).total_seconds(), 3)
+    if frame_rate < 27.0:
+        collection.update_one({'_id': genome['_id']}, {'$set': {'failed_eval': True, 'error': 'Frame rate too low!'}})
+        exit(1)
+    if end_frames[track_num] == 0:
+        collection.update_one({'_id': genome['_id']}, {'$set': {'failed_eval': True, 'error': 'No frames!'}})
+        exit(1)
     frames[track_num] = sb.course_frames
+    frame_adj_runtime = 0
     if sb.completed_course:
-        time_diffs[track_num] = float(frames[track_num]) / 28.0 - times[track_num]
+        frame_adj_runtime = float(frames[track_num]) / 28.0
+        time_diffs[track_num] = frame_adj_runtime - times[track_num]
     else:
+        frame_adj_runtime = float(end_frames[track_num]) / 28.0
         time_diffs[track_num] = float(end_frames[track_num]) / 28.0 - runtimes[track_num]
     collection.update_one({'_id': genome['_id']}, {
-    '$set': {'bonus': bonuses, 'completion': completions, 'time': times, 'runtime': runtimes, 'x': last_xs, 'y': last_ys, 'avg_speed': avg_speeds, 'avg_completion_per_frame': avg_completions_per_frame, 'frame_rate': frame_rate, 'autopsy': autopsies, 'frame': frames, 'end_frame': end_frames, 'time_diff': time_diffs}})
+    '$set': {'bonus': bonuses, 'completion': completions, 'time': times, 'runtime': runtimes, 'x': last_xs, 'y': last_ys, 'avg_speed': avg_speeds, 'avg_completion_per_frame': avg_completions_per_frame, 'frame_rate': frame_rate, 'autopsy': autopsies, 'frame': frames, 'end_frame': end_frames, 'time_diff': time_diffs, 'frame_adj_runtime': frame_adj_runtime}})
     try:
         sb.close_bot()
         print('Bot Closed!')
