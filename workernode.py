@@ -152,7 +152,12 @@ while True:
             client = pymongo.MongoClient(db_string)
             db = client.NEAT
             collection = db.genomes
+            genome = collection.find_one({"_id": genome["_id"]})
+            if genome is None:
+                continue
             updates: Dict[str, Any] = {"started_eval": True, "finished_eval": False, 'failed_eval': True}
+            if 'error' not in genome:
+                updates["error"] = f'Runtime Exception: {e}'
             if str(e) != "Bot Error!":
                 updates["exception"]= f'{e}'
             collection.update_one(

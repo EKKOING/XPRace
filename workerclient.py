@@ -11,49 +11,47 @@ from neat import nn
 
 from shellracebot import ShellBot
 
+## Get port number track name and bot name from command line
+parser = argparse.ArgumentParser()
+parser.add_argument("-port", help="port number", required=True)
+parser.add_argument("-track", help="track idx", required=True)
+parser.add_argument("-dbid", help="genome db id", required=True)
+parser.add_argument("-eval_length", help="evaluation length", required=True)
+args = parser.parse_args()
+
+if not args.port:
+    print("No port number specified!")
+    exit(2)
+if not args.track:
+    print("No track specified!")
+    exit(2)
+track_num = int(args.track)
+if not args.dbid:
+    print("No genome id specified!")
+    exit(2)
+print(f'port {args.port} for track {track_num} with genome id {args.dbid}')
+db_objid = ObjectId(args.dbid)
+if not args.eval_length:
+    print("No evaluation length specified!")
+    exit(2)
 try:
-    ## Get port number track name and bot name from command line
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-port", help="port number", required=True)
-    parser.add_argument("-track", help="track idx", required=True)
-    parser.add_argument("-dbid", help="genome db id", required=True)
-    parser.add_argument("-eval_length", help="evaluation length", required=True)
-    args = parser.parse_args()
+    with open('creds.json') as f:
+        creds = json.load(f)
+except FileNotFoundError:
+    print('creds.json not found!')
+    exit(1)
 
-    if not args.port:
-        print("No port number specified!")
-        exit(2)
-    if not args.track:
-        print("No track specified!")
-        exit(2)
-    track_num = int(args.track)
-    if not args.dbid:
-        print("No genome id specified!")
-        exit(2)
-    print(f'port {args.port} for track {track_num} with genome id {args.dbid}')
-    db_objid = ObjectId(args.dbid)
-    if not args.eval_length:
-        print("No evaluation length specified!")
-        exit(2)
-    eval_length = float(args.eval_length)
+db_string = creds['mongodb']
+client = pymongo.MongoClient(db_string)
+db = client.NEAT
+collection = db.genomes
 
-    ## Start bot
-    try:
-        with open('creds.json') as f:
-            creds = json.load(f)
-    except FileNotFoundError:
-        print('creds.json not found!')
-        exit(1)
-
-    db_string = creds['mongodb']
-    client = pymongo.MongoClient(db_string)
-    db = client.NEAT
-    collection = db.genomes
-
+try:
     genome = collection.find_one({'_id': db_objid})
     if genome is None:
         print('Genome invalid!')
         exit(2)
+    eval_length = float(args.eval_length)
     net = pickle.loads(genome['genome'])
     generation = genome['generation']
     individual_num = genome['individual_num']
@@ -74,7 +72,7 @@ try:
     end_frames = genome['end_frame']
     time_diffs = genome['time_diff']
 
-    sb = ShellBot(f"EKKO{track_num}", track, args.port, headless=True)
+    sb = ShellBot(f"EKKO{track_num}", track, args.port, headless=False)
     sb.start()
     sleep(1)
     sb.ask_for_perms = True
@@ -130,5 +128,11 @@ try:
     print(f'Frame Rate: {frame_rate}')
 except Exception as e:
     print('Error in workerclient.py')
+    genome = collection.find_one({'_id': db_objid})
+    if genome is None:
+        print('Genome invalid!')
+        exit(2)
+    update_dict = {'failed_eval': True, 'error': f'Runtime Error: {e}'}
+    collection.update_one({'_id': genome['_id']}, {'$set': update_dict})
     raise e
 exit(0)
