@@ -69,6 +69,7 @@ while True:
             autopsies = ["Unknown" for _ in range(num_tracks)]
             frames = np.zeros(num_tracks).tolist()
             time_diffs = np.zeros(num_tracks).tolist()
+            frame_adj_runtimes = np.zeros(num_tracks).tolist()
             collection.update_one(
                 {"_id": genome["_id"]},
                 {
@@ -89,7 +90,8 @@ while True:
                         "autopsy": autopsies,
                         "frame": frames,
                         "end_frame": frames,
-                        "time_diff": time_diffs
+                        "time_diff": time_diffs,
+                        "frame_adj_runtime": frame_adj_runtimes,
                     }
                 },
             )
@@ -126,19 +128,16 @@ while True:
                         "-eval_length", f"{eval_length}",
                     ]
                 )
-                sleep(1)
+                sleep(0.25)
                 print("Waiting for Bot to finish!")
                 bot_return_code = bot.wait()
-                sleep(1)
+                sleep(0.25)
                 print(f"Bot finished with return code {bot_return_code}!")
-                if bot_return_code != 0:
-                    server.kill()
-                    server.wait()
-                    print("Server killed!")
-                    raise Exception("Bot Error!")
                 server.kill()
-                sleep(1)
+                sleep(0.25)
                 print("Server killed!")
+                if bot_return_code != 0:
+                    raise Exception("Worker Client Error!")
                 print(f"=== Finished Track {track_num + 1}/{len(tracks)} ===")
             client = pymongo.MongoClient(db_string)
             db = client.NEAT
@@ -156,10 +155,11 @@ while True:
             if genome is None:
                 continue
             updates: Dict[str, Any] = {"started_eval": True, "finished_eval": False, 'failed_eval': True}
-            if 'error' not in genome:
-                updates["error"] = f'Runtime Exception: {e}'
-            if str(e) != "Bot Error!":
+            if str(e) != "Worker Client Error!":
                 updates["exception"]= f'{e}'
+                if 'error' not in genome:
+                    updates["error"] = f'Runtime Exception: {e}'
+                raise e
             collection.update_one(
                 {"_id": genome["_id"]}, {"$set": updates}
             )

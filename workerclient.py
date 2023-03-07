@@ -71,6 +71,7 @@ try:
     frames = genome['frame']
     end_frames = genome['end_frame']
     time_diffs = genome['time_diff']
+    frame_adj_runtimes = genome['frame_adj_runtime']
 
     sb = ShellBot(f"EKKO{track_num}", track, args.port, headless=True)
     sb.start()
@@ -88,7 +89,7 @@ try:
         sleep(0.01)
     if not sb.done and (datetime.now() - start_time).total_seconds() >= eval_length:
         sb.cause_of_death = 'Time'
-    runtimes[track_num] = round((datetime.now() - start_time).total_seconds(), 3)
+    runtimes[track_num] = round((datetime.now() - sb.start_time).total_seconds(), 3)
     end_frames[track_num] = sb.frame
     sb.show_info = False
     bonuses[track_num], completions[track_num], times[track_num] = sb.get_scores()
@@ -110,13 +111,14 @@ try:
         collection.update_one({'_id': genome['_id']}, {'$set': {'failed_eval': True, 'error': 'No frames!'}})
         exit(1)
     frames[track_num] = sb.course_frames
-    frame_adj_runtime = 0
+    frame_adj_runtime = 0.0
     if sb.completed_course:
         frame_adj_runtime = float(frames[track_num]) / 28.0
         time_diffs[track_num] = frame_adj_runtime - times[track_num]
     else:
         frame_adj_runtime = float(end_frames[track_num]) / 28.0
         time_diffs[track_num] = float(end_frames[track_num]) / 28.0 - runtimes[track_num]
+    frame_adj_runtimes[track_num] = frame_adj_runtime
     collection.update_one({'_id': genome['_id']}, {
     '$set': {'bonus': bonuses, 'completion': completions, 'time': times, 'runtime': runtimes, 'x': last_xs, 'y': last_ys, 'avg_speed': avg_speeds, 'avg_completion_per_frame': avg_completions_per_frame, 'frame_rate': frame_rate, 'autopsy': autopsies, 'frame': frames, 'end_frame': end_frames, 'time_diff': time_diffs, 'frame_adj_runtime': frame_adj_runtime}})
     try:
@@ -124,7 +126,7 @@ try:
         print('Bot Closed!')
     except Exception:
         pass
-    print(f'Generation {generation} number {individual_num} Species: {species} finished evaluation on {track}! Bonus: {round(bonuses[track_num], 3)} Completion: {round(completions[track_num], 3)} Time: {times[track_num]} Runtime: {runtimes[track_num]}s Avg Speed: {avg_speeds[track_num]} Avg Completion: {avg_completions_per_frame[track_num]}')
+    print(f'Generation {generation} number {individual_num} Species: {species} finished evaluation on {track}! Bonus: {round(bonuses[track_num], 3)} Completion: {round(completions[track_num], 3)} Time: {times[track_num]} Runtime: {runtimes[track_num]}s or {frame_adj_runtimes[track_num]}s Avg Speed: {avg_speeds[track_num]} Avg Completion: {avg_completions_per_frame[track_num]}')
     print(f'Frame Rate: {frame_rate}')
 except Exception as e:
     print('Error in workerclient.py')
@@ -132,7 +134,7 @@ except Exception as e:
     if genome is None:
         print('Genome invalid!')
         exit(2)
-    update_dict = {'failed_eval': True, 'error': f'Runtime Error: {e}'}
+    update_dict = {'failed_eval': True, 'error': f'Runtime Error: {e}', 'exception': str(e)}
     collection.update_one({'_id': genome['_id']}, {'$set': update_dict})
     raise e
 exit(0)
