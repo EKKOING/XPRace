@@ -65,11 +65,11 @@ while True:
             last_ys = np.zeros(num_tracks).tolist()
             avg_speeds = np.zeros(num_tracks).tolist()
             avg_completions_per_frame = np.zeros(num_tracks).tolist()
-            runtimes = np.zeros(num_tracks).tolist()
+            runtimes = np.full(num_tracks, -1.0).tolist()
             autopsies = ["Unknown" for _ in range(num_tracks)]
             frames = np.zeros(num_tracks).tolist()
             time_diffs = np.zeros(num_tracks).tolist()
-            frame_adj_runtimes = np.zeros(num_tracks).tolist()
+            frame_adj_runtimes = np.full(num_tracks, -1.0).tolist()
             collection.update_one(
                 {"_id": genome["_id"]},
                 {
@@ -91,7 +91,7 @@ while True:
                         "frame": frames,
                         "end_frame": frames,
                         "time_diff": time_diffs,
-                        "frame_adj_runtime": frame_adj_runtimes,
+                        "frame_adj_runtime": frame_adj_runtimes
                     }
                 },
             )
