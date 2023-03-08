@@ -100,6 +100,8 @@ class ShellBot(threading.Thread):
 
     ## Properties For Processing
     ## Ship Info
+    x: int = -1
+    y: int = -1
     heading: int = 90
     tracking: int = 90
     heading_x: float = 0
