@@ -104,12 +104,6 @@ try:
             frame_rate = min(frame_rate, sb.frame_rate)
     avg_speeds[track_num] = round(sb.average_speed, 3)
     avg_completions_per_frame[track_num] = round(sb.average_completion_per_frame, 3)
-    if frame_rate < 27.0:
-        collection.update_one({'_id': genome['_id']}, {'$set': {'failed_eval': True, 'error': 'Frame rate too low!'}})
-        exit(1)
-    if end_frames[track_num] == 0:
-        collection.update_one({'_id': genome['_id']}, {'$set': {'failed_eval': True, 'error': 'No frames!'}})
-        exit(1)
     frames[track_num] = sb.course_frames
     if sb.completed_course:
         frame_adj_runtimes[track_num] = float(frames[track_num]) / 28.0
@@ -119,6 +113,12 @@ try:
         time_diffs[track_num] = frame_adj_runtimes[track_num] - runtimes[track_num]
     collection.update_one({'_id': genome['_id']}, {
     '$set': {'bonus': bonuses, 'completion': completions, 'time': times, 'runtime': runtimes, 'x': last_xs, 'y': last_ys, 'avg_speed': avg_speeds, 'avg_completion_per_frame': avg_completions_per_frame, 'frame_rate': frame_rate, 'autopsy': autopsies, 'frame': frames, 'end_frame': end_frames, 'time_diff': time_diffs, 'frame_adj_runtime': frame_adj_runtimes}})
+    if end_frames[track_num] == 0:
+        collection.update_one({'_id': genome['_id']}, {'$set': {'failed_eval': True, 'error': 'No frames!', 'just_failed': True}})
+        exit(1)
+    if frame_rate < 27.0:
+        collection.update_one({'_id': genome['_id']}, {'$set': {'failed_eval': True, 'error': 'Frame rate too low!', 'just_failed': True}})
+        exit(1)
     try:
         sb.close_bot()
         print('Bot Closed!')
@@ -132,7 +132,7 @@ except Exception as e:
     if genome is None:
         print('Genome invalid!')
         exit(2)
-    update_dict = {'failed_eval': True, 'error': f'Runtime Error: {e}', 'exception': str(e)}
+    update_dict = {'failed_eval': True, 'error': f'Runtime Error: {e}', 'exception': str(e), 'just_failed': True}
     collection.update_one({'_id': genome['_id']}, {'$set': update_dict})
     raise e
 exit(0)

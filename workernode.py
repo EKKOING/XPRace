@@ -154,7 +154,7 @@ while True:
             genome = collection.find_one({"_id": genome["_id"]})
             if genome is None:
                 continue
-            updates: Dict[str, Any] = {"started_eval": True, "finished_eval": False, 'failed_eval': True}
+            updates: Dict[str, Any] = {"started_eval": True, "finished_eval": False, 'failed_eval': True, 'just_failed': True}
             if str(e) != "Worker Client Error!":
                 updates["exception"]= f'{e}'
                 if 'error' not in genome:
