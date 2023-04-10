@@ -133,7 +133,7 @@ while True:
                 bot_return_code = bot.wait()
                 sleep(0.25)
                 print(f"Bot finished with return code {bot_return_code}!")
-                server.kill()
+                server.terminate()
                 sleep(0.25)
                 print("Server killed!")
                 if bot_return_code != 0:
@@ -171,6 +171,6 @@ while True:
             print("Waiting For Work Assignment!")
             print("==================")
             waiting = True
-        ## Try to desync workers
-        sleep(uniform(3, 15))
+        ## Try to desync workers slightly
+        sleep(uniform(1, 5))
     sleep(1)
