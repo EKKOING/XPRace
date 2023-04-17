@@ -50,6 +50,10 @@ waiting = False
 while True:
     with open("pause.txt", "r") as f:
         paused = f.read().strip() == "True"
+        kill = f.read().strip() == "Kill"
+        f.close()
+    if kill:
+        exit()
     if paused:
         if not waiting:
             print(f"{args.host} {args.instance} === Paused ===")
@@ -57,18 +61,21 @@ while True:
         sleep(1)
         continue
     if collection.count_documents({"started_eval": False}) != 0:
+        waiting = False
         genome = collection.find_one_and_update(
             {"started_eval": False},
             update={
-                "started_eval": True,
-                "hostname": hostname,
-                "started_at": datetime.now(),
+                "$set": {
+                    "started_eval": True,
+                    "hostname": hostname,
+                    "started_at": datetime.now(),
+                }
             },
             sort=[
                 ("generation", pymongo.ASCENDING),
                 ("individual_num", pymongo.ASCENDING),
             ],
-            return_document=pymongo.ReturnDocument.AFTER
+            return_document=pymongo.ReturnDocument.AFTER,
         )
         if genome is None:
             continue
@@ -122,7 +129,9 @@ while True:
                     track_info = json.load(f)
                     eval_length += track_info["target_time"]
                 port_num = randint(49152, 65535)
-                print(f"{args.host} {args.instance} === Starting Server on {port_num}! Track: {track}")
+                print(
+                    f"{args.host} {args.instance} === Starting Server on {port_num}! Track: {track}"
+                )
                 server = subprocess.Popen(
                     [
                         "./xpilots",
@@ -161,13 +170,17 @@ while True:
                 print(f"{args.host} {args.instance} === Waiting for Bot to finish!")
                 bot_return_code = bot.wait()
                 sleep(0.25)
-                print(f"{args.host} {args.instance} === Bot finished with return code {bot_return_code}!")
+                print(
+                    f"{args.host} {args.instance} === Bot finished with return code {bot_return_code}!"
+                )
                 server.terminate()
                 sleep(0.25)
                 print(f"{args.host} {args.instance} === Server killed!")
                 if bot_return_code != 0:
                     raise Exception("Worker Client Error!")
-                print(f"{args.host} {args.instance} === Finished Track {track_num + 1}/{len(tracks)} ===")
+                print(
+                    f"{args.host} {args.instance} === Finished Track {track_num + 1}/{len(tracks)} ==="
+                )
             client = pymongo.MongoClient(db_string)
             db = client.NEAT
             collection = db.genomes
@@ -175,7 +188,6 @@ while True:
                 {"_id": genome["_id"]}, {"$set": {"finished_eval": True}}
             )
             print(f"{args.host} {args.instance} === Finished Eval Successfully ===")
-            waiting = False
             exit(0)
         except Exception as e:
             client = pymongo.MongoClient(db_string)
