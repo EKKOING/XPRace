@@ -72,6 +72,9 @@ try:
     end_frames = genome['end_frame']
     time_diffs = genome['time_diff']
     frame_adj_runtimes = genome['frame_adj_runtime']
+    hostname = genome['hostname']
+    host = hostname.split('_')[0]
+    instance = hostname.split('_')[-1]
 
     sb = ShellBot(f"EKKO{track_num}", track, args.port, headless=True)
     sb.start()
@@ -82,7 +85,7 @@ try:
     sb.reset()
     while sb.awaiting_reset or sb.done:
         pass
-    print(f'Generation {generation} number {individual_num} started evaluation on {track}!')
+    print(f'{host} {instance} === Generation {generation} number {individual_num} started evaluation on {track}!')
     start_time = datetime.now()
     sb.show_info = True
     while not sb.done and (datetime.now() - start_time).total_seconds() < eval_length:
@@ -121,11 +124,11 @@ try:
         exit(1)
     try:
         sb.close_bot()
-        print('Bot Closed!')
+        print(f'{host} {instance} === Bot Closed!')
     except Exception:
         pass
-    print(f'Generation {generation} number {individual_num} Species: {species} finished evaluation on {track}! Bonus: {round(bonuses[track_num], 3)} Completion: {round(completions[track_num], 3)} Time: {times[track_num]} Runtime: {runtimes[track_num]}s or {frame_adj_runtimes[track_num]}s Avg Speed: {avg_speeds[track_num]} Avg Completion: {avg_completions_per_frame[track_num]}')
-    print(f'Frame Rate: {frame_rate}')
+    print(f'{host} {instance} === Generation {generation} number {individual_num} Species: {species} finished evaluation on {track}! Bonus: {round(bonuses[track_num], 3)} Completion: {round(completions[track_num], 3)} Time: {times[track_num]} Runtime: {runtimes[track_num]}s or {frame_adj_runtimes[track_num]}s Avg Speed: {avg_speeds[track_num]} Avg Completion: {avg_completions_per_frame[track_num]}')
+    print(f'{host} {instance} === Frame Rate: {frame_rate}')
 except Exception as e:
     print('Error in workerclient.py')
     genome = collection.find_one({'_id': db_objid})
