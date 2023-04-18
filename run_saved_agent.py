@@ -29,11 +29,24 @@ client = pymongo.MongoClient(db_string)
 db = client.NEAT
 collection = db.genomes
 
-trial = int(input("Trial Number: "))
-generation = int(input("Generation: "))
-individual_num = int(input("Individual Number: "))
-
-genome = collection.find_one({"trial": trial, "generation": generation, 'individual_num': individual_num})
+genome = None
+print("Enter the trial number, generation number, and individual number of the genome you want to run. Leave blank to run the best genome according to criteria.")
+trial = input("Trial Number: ")
+if trial == "":
+    genome = collection.find_one({}, sort=[("fitness", pymongo.DESCENDING)])
+else:
+    trial = int(trial)
+    generation = input("Generation: ")
+    if generation == "":
+        genome = collection.find_one({"trial": trial}, sort=[("fitness", pymongo.DESCENDING)])
+    else:
+        generation = int(generation)
+        individual_num = input("Individual Number: ")
+        if individual_num == "":
+            genome = collection.find_one({"trial": trial, "generation": generation}, sort=[("fitness", pymongo.DESCENDING)])
+        else:
+            individual_num = int(individual_num)
+            genome = collection.find_one({"trial": trial, "generation": generation, 'individual_num': individual_num})
 if genome is None:
     print("Genome not found!")
     exit()
@@ -41,7 +54,8 @@ generation = genome["generation"]
 individual_num = genome["individual_num"]
 species = genome["species"]
 tracks = genome["tracks"]
-print(f'Running genome {individual_num} in generation {generation} on {tracks}!')
+trial = genome["trial"]
+print(f'Running genome {individual_num} in generation {generation} from trial {trial} on {tracks}!')
 while True:
     for track_num, track in enumerate(tracks):
         eval_length = 10
