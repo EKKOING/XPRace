@@ -35,7 +35,10 @@ try:
         print("No genome id specified!")
         exit(2)
     print(f'port {args.port} for track {track_num} with genome id {args.dbid}')
-    db_objid = ObjectId(args.dbid)
+    if args.dbid == "Human":
+        db_objid = "Human"
+    else:
+        db_objid = ObjectId(args.dbid)
     if not args.eval_length:
         print("No evaluation length specified!")
         exit(2)
