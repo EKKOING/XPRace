@@ -104,7 +104,7 @@ try:
         print('Bot Closed!')
     except Exception:
         pass
-    print(f'Generation {generation} number {individual_num} Species: {species} finished run on {track}! Bonus: {round(bonuses[track_num], 3)} Completion: {round(completion, 3)} Time: {time} Runtime: {runtime}s Avg Speed: {avg_speed} Avg Completion: {avg_completion_per_frame}')
+    print(f'Generation {generation} number {individual_num} Species: {species} finished run on {track}! Bonus: {round(bonus, 3)} Completion: {round(completion, 3)} Time: {time} Runtime: {runtime}s Avg Speed: {avg_speed} Avg Completion: {avg_completion_per_frame}')
     print(f'Frame Rate: {frame_rate}')
 except Exception as e:
     print('Error in workerclient.py')
