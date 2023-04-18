@@ -63,12 +63,12 @@ else:
     if genome is None:
         print("Genome not found!")
         exit()
-    generation = genome["generation"]
-    individual_num = genome["individual_num"]
-    species = genome["species"]
-    tracks = genome["tracks"]
-    trial = genome["trial"]
-    print(f'Running genome {individual_num} in generation {generation} from trial {trial} on {tracks}!')
+generation = genome["generation"]
+individual_num = genome["individual_num"]
+species = genome["species"]
+tracks = genome["tracks"]
+trial = genome["trial"]
+print(f'Running genome {individual_num} in generation {generation} from trial {trial} on {tracks}!')
 for track_num, track in enumerate(tracks):
     eval_length = 10
     with open(f'{track}.json') as f:

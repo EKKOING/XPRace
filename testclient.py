@@ -58,6 +58,7 @@ try:
     species = 0
     tracks = ["circuit1_a", "circuit1_b"]
     track = tracks[track_num]
+    net = None
     if db_objid != "Human":
         genome = collection.find_one({'_id': db_objid})
         if genome is None:
@@ -70,13 +71,6 @@ try:
         tracks = genome['tracks']
         if track_num is not None:
             track = tracks[track_num]
-        bonuses = genome['bonus']
-        completions = genome['completion']
-        times = genome['time']
-        avg_speeds = genome['avg_speed']
-        avg_completions_per_frame = genome['avg_completion_per_frame']
-        runtimes = genome['runtime']
-        frame_rate = genome['frame_rate']
     else:
         human = True
     sb = ShellBot(f"EKKO{track_num}", track, args.port, headless=False, human = human)
@@ -84,7 +78,8 @@ try:
     sleep(1)
     sb.ask_for_perms = True
     sleep(1)
-    sb.nn = net
+    if db_objid != "Human":
+        sb.nn = net
     sb.reset()
     while sb.awaiting_reset or sb.done:
         pass
