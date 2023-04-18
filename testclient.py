@@ -106,6 +106,7 @@ try:
         pass
     print(f'Generation {generation} number {individual_num} Species: {species} finished run on {track}! Bonus: {round(bonus, 3)} Completion: {round(completion, 3)} Time: {time} Runtime: {runtime}s Avg Speed: {avg_speed} Avg Completion: {avg_completion_per_frame}')
     print(f'Frame Rate: {frame_rate}')
+    print(f'Cause of Death: {sb.cause_of_death}')
 except Exception as e:
     print('Error in workerclient.py')
     raise e
