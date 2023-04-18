@@ -39,6 +39,7 @@ class ShellBot(threading.Thread):
     test_mode: bool = False
     show_info: bool = False
     just_printed_info: bool = False
+    human: bool = False
 
     ## Neat Info
     nn = None
@@ -130,6 +131,7 @@ class ShellBot(threading.Thread):
         mapname: str = "testtrack",
         port=None,
         headless: bool = False,
+        human: bool = False,
     ) -> None:
         super(ShellBot, self).__init__()
         self.username = username
@@ -137,6 +139,7 @@ class ShellBot(threading.Thread):
         self.gamemap = mapname
         self.port = port
         self.headless = headless
+        self.human = human
         with open(f"{self.gamemap}.json", "r") as f:
             map_data = json.load(f)
             self.checkpoints = map_data["checkpoints"]
@@ -206,7 +209,8 @@ class ShellBot(threading.Thread):
         self,
     ) -> None:
         ##print(f"Bot starting frame {self.frame}")
-        self.reset_flags()
+        if not self.human:
+            self.reset_flags()
         self.frame += 1
 
         try:
@@ -242,8 +246,9 @@ class ShellBot(threading.Thread):
 
             self.collect_info()
             self.check_done()
-            self.set_action()
-            self.perform_action()
+            if not self.human:
+                self.set_action()
+                self.perform_action()
             ai.setPowerLevel(self.power_level)
         except AttributeError:
             pass
@@ -351,7 +356,7 @@ class ShellBot(threading.Thread):
         heading_readout = f"Heading: {self.heading} Components: {self.get_components(self.heading, self.speed)}"
 
         framerate_readout = (
-            f" Framerate: {round(self.frame_rate, 1):3} - Frames: {self.frame:6}"
+            f" Framerate: {round(self.frame_rate, 1) if self.frame_rate else 0.0:3} - Frames: {self.frame:6}"
         )
 
         dash_graphs = [
