@@ -61,9 +61,6 @@ try:
     hostname = genome["hostname"]
     host = hostname.split("_")[0]
     instance = hostname.split("_")[-1]
-    xs = genome["xs"]
-    ys = genome["ys"]
-    headings = genome["headings"]
 
     sb = ShellBot(f"EKKO{track_num}", track, args.port, headless=True, adv_log=True)
     sb.start()
