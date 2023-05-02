@@ -80,9 +80,9 @@ try:
         sleep(0.01)
     if not sb.done and (datetime.now() - start_time).total_seconds() >= eval_length:
         sb.cause_of_death = "Time"
-    xs[track_num] = sb.xs
-    ys[track_num] = sb.ys
-    headings[track_num] = sb.headings
+    xs = sb.xs
+    ys = sb.ys
+    headings = sb.headings
     sb.show_info = False
 
     frame_rate = 0.0
