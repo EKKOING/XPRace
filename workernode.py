@@ -210,6 +210,78 @@ while True:
             collection.update_one({"_id": genome["_id"]}, {"$set": updates})
             print(f"{args.host} {args.instance} === Error In Eval: {e}")
             raise e
+    elif collection.count_documents({"needs_adv_log": True}) != 0:
+        genome = collection.find_one_and_update(
+            {"needs_adv_log": True}, {"$set": {"needs_adv_log": False}}
+        )
+        if genome is None:
+            continue
+        generation = genome["generation"]
+        individual_num = genome["individual_num"]
+        species = genome["species"]
+        tracks = genome["tracks"]
+        num_tracks = len(tracks)
+        print(
+                f"{args.host} {args.instance} === Beginning evaluation of genome {individual_num} in generation {generation} on {tracks}!"
+            )
+        for track_num, track in enumerate(tracks):
+            eval_length = 10
+            with open(f"{track}.json") as f:
+                track_info = json.load(f)
+                eval_length += track_info["target_time"]
+            port_num = randint(49152, 65535)
+            print(
+                f"{args.host} {args.instance} === Starting Server on {port_num}! Track: {track}"
+            )
+            server = subprocess.Popen(
+                [
+                    "./xpilots",
+                    "-map",
+                    f"{track}.xp",
+                    "-noQuit",
+                    "-maxClientsPerIP",
+                    "500",
+                    "-password",
+                    "test",
+                    "-worldlives",
+                    "999",
+                    "-fps",
+                    f"{fps}",
+                    "-contactPort",
+                    f"{port_num}",
+                ]
+            )
+            sleep(3)
+            print(f"{args.host} {args.instance} === Starting Bot!")
+            bot = subprocess.Popen(
+                [
+                    "python3",
+                    "loggerclient.py",
+                    "-port",
+                    f"{port_num}",
+                    "-track",
+                    f"{track_num}",
+                    "-dbid",
+                    f"{str(genome['_id'])}",
+                    "-eval_length",
+                    f"{eval_length}",
+                ]
+            )
+            sleep(0.25)
+            print(f"{args.host} {args.instance} === Waiting for Bot to finish!")
+            bot_return_code = bot.wait()
+            sleep(0.25)
+            print(
+                f"{args.host} {args.instance} === Bot finished with return code {bot_return_code}!"
+            )
+            server.terminate()
+            sleep(0.25)
+            print(f"{args.host} {args.instance} === Server killed!")
+            if bot_return_code != 0:
+                raise Exception("Worker Client Error!")
+            print(
+                f"{args.host} {args.instance} === Finished Track {track_num + 1}/{len(tracks)} ==="
+            )
     else:
         if not waiting:
             print(f"{args.host} {args.instance} === Waiting For Work Assignment!")

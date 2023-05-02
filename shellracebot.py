@@ -125,6 +125,12 @@ class ShellBot(threading.Thread):
     checkpoints: List[List[int]] = [[0, 0]]
     course_length_list: List[float] = [0.0]
 
+    ## Logging Info
+    adv_log: bool = False
+    xs: List[int] = []
+    ys: List[int] = []
+    headings: List[int] = []
+
     def __init__(
         self,
         username: str = "InitNoName",
@@ -132,6 +138,7 @@ class ShellBot(threading.Thread):
         port=None,
         headless: bool = False,
         human: bool = False,
+        adv_log: bool = False,
     ) -> None:
         super(ShellBot, self).__init__()
         self.username = username
@@ -140,6 +147,7 @@ class ShellBot(threading.Thread):
         self.port = port
         self.headless = headless
         self.human = human
+        self.adv_log = adv_log
         with open(f"{self.gamemap}.json", "r") as f:
             map_data = json.load(f)
             self.checkpoints = map_data["checkpoints"]
@@ -209,7 +217,7 @@ class ShellBot(threading.Thread):
         self,
     ) -> None:
         ##print(f"Bot starting frame {self.frame}")
-        if not self.human:
+        if not self.human or self.frame == 0:
             self.reset_flags()
         self.frame += 1
 
@@ -246,9 +254,11 @@ class ShellBot(threading.Thread):
 
             self.collect_info()
             self.check_done()
+            self.set_action()
             if not self.human:
-                self.set_action()
                 self.perform_action()
+            if self.adv_log:
+                self.adv_logger()
             ai.setPowerLevel(self.power_level)
         except AttributeError:
             pass
@@ -267,6 +277,10 @@ class ShellBot(threading.Thread):
         self.frame_rate = (
             self.frame / (datetime.now() - self.reset_time).total_seconds()
         )
+    def adv_logger(self,) -> None:
+        self.xs.append(self.x)
+        self.ys.append(self.y)
+        self.headings.append(self.heading)
 
     def print_info(
         self,
